@@ -1,0 +1,1990 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TierForge — Tier List Maker</title>
+<style>
+:root{
+  --bg:#0e1116; --bg2:#151a22; --bg3:#1c232e; --bg4:#252e3b;
+  --fg:#e6edf5; --fg2:#9aa7b8; --fg3:#67748a;
+  --line:#2a3442; --line2:#3a4757;
+  --accent:#4c8dff; --accent2:#3a6fd8;
+  --danger:#f2555a; --ok:#3fbf7f;
+  --radius:10px; --radius-sm:6px;
+  --tile:96px;
+  --shadow:0 4px 16px rgba(0,0,0,.4);
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+:root[data-theme="light"]{
+  --bg:#f2f4f8; --bg2:#ffffff; --bg3:#e9edf3; --bg4:#dde3ec;
+  --fg:#131820; --fg2:#5a6779; --fg3:#8593a6;
+  --line:#d3dae4; --line2:#bcc6d4;
+  --shadow:0 4px 16px rgba(20,30,50,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--font); background:var(--bg); color:var(--fg);
+  font-size:14px; overflow:hidden; -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:5px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:var(--fg3)}
+
+/* ---------- layout ---------- */
+/* min-height:0 sulle righe: senza, i figli in overflow gonfiano la griglia
+   oltre il viewport invece di scrollare internamente. */
+#app{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:minmax(0,1fr);
+  height:100vh;overflow:hidden}
+#app>*{min-height:0;min-width:0}
+
+/* ---------- sidebar progetti ---------- */
+#sidebar{
+  width:210px;background:var(--bg2);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;transition:width .18s,min-width .18s;
+}
+#sidebar.collapsed{width:0;min-width:0;overflow:hidden;border-right:none}
+.side-head{padding:14px 14px 10px;display:flex;align-items:center;gap:8px}
+.logo{font-weight:700;font-size:15px;letter-spacing:-.2px;flex:1}
+.logo span{color:var(--accent)}
+.side-sub{padding:0 14px 8px;font-size:10px;text-transform:uppercase;
+  letter-spacing:.9px;color:var(--fg3);font-weight:600}
+#projList{flex:1;overflow-y:auto;padding:0 8px}
+.proj{
+  display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:var(--radius-sm);
+  cursor:pointer;font-size:13px;color:var(--fg2);margin-bottom:2px;
+}
+.proj:hover{background:var(--bg3);color:var(--fg)}
+.proj.active{background:var(--accent);color:#fff;font-weight:500}
+.proj-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj-x{opacity:0;font-size:15px;line-height:1;padding:0 2px;color:inherit}
+.proj:hover .proj-x{opacity:.55}
+.proj-x:hover{opacity:1!important}
+.side-foot{padding:8px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:5px}
+
+/* ---------- main ---------- */
+#main{display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+#toolbar{
+  height:48px;flex:0 0 auto;display:flex;align-items:center;gap:6px;
+  padding:0 10px;background:var(--bg2);border-bottom:1px solid var(--line);
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+}
+#toolbar::-webkit-scrollbar{height:0}
+#toolbar>*{flex:0 0 auto}
+/* Sotto i 1180px le etichette dei pulsanti spariscono: restano le icone,
+   così la toolbar non deborda mai sotto il pannello laterale. */
+/* Container query, non media query: la toolbar va misurata rispetto a #main
+   (che le sidebar restringono), non rispetto al viewport. */
+#main{container-type:inline-size;container-name:main}
+@container main (max-width:900px){
+  #toolbar .btn .lbl{display:none}
+  #toolbar .btn{padding:7px 9px}
+  #tileSize{width:52px}
+}
+@container main (max-width:680px){
+  #toolbar .zoom{display:none}
+}
+@container main (max-width:520px){
+  #title{max-width:120px}
+}
+#title{
+  font-size:15px;font-weight:600;background:none;border:1px solid transparent;
+  padding:5px 8px;border-radius:var(--radius-sm);min-width:80px;max-width:300px;outline:none;
+}
+#title:hover{border-color:var(--line)}
+#title:focus{border-color:var(--accent);background:var(--bg)}
+.sep{width:1px;height:22px;background:var(--line);margin:0 3px}
+.spacer{flex:1}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:var(--radius-sm);
+  background:var(--bg3);color:var(--fg2);font-size:13px;font-weight:500;
+  border:1px solid transparent;white-space:nowrap;transition:.13s;
+}
+.btn:hover{background:var(--bg4);color:var(--fg)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent2)}
+.btn.ghost{background:none}
+.btn.ghost:hover{background:var(--bg3)}
+.btn.icon{padding:7px 9px}
+.btn:disabled{opacity:.35;pointer-events:none}
+.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+
+/* ---------- board ---------- */
+#boardWrap{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px}
+#board{max-width:1300px;margin:0 auto;display:flex;flex-direction:column;gap:5px}
+.row{
+  display:flex;align-items:stretch;background:var(--bg2);border-radius:var(--radius);
+  overflow:hidden;border:1px solid var(--line);
+}
+.row.drag-over{border-color:var(--accent)}
+.row.row-dragging{opacity:.4}
+.row-label{
+  flex:0 0 var(--tile);min-height:var(--tile);display:flex;align-items:center;
+  justify-content:center;padding:6px;position:relative;
+}
+.row-label textarea{
+  width:100%;background:none;border:none;outline:none;resize:none;text-align:center;
+  font-weight:800;font-size:19px;color:#0d0d0d;text-shadow:0 1px 2px rgba(255,255,255,.28);
+  overflow:hidden;line-height:1.15;font-family:var(--font);
+}
+.row-items{
+  flex:1;display:flex;flex-wrap:wrap;gap:4px;padding:4px;align-content:flex-start;
+  min-height:var(--tile);
+}
+.row-tools{
+  flex:0 0 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;background:var(--bg3);border-left:1px solid var(--line);
+}
+.rt{width:22px;height:20px;display:flex;align-items:center;justify-content:center;
+  color:var(--fg3);border-radius:4px;font-size:11px}
+.rt:hover{background:var(--bg4);color:var(--fg)}
+.rt svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.rt.grab{cursor:grab}
+.rt input[type=color]{
+  width:15px;height:15px;padding:0;border:none;border-radius:3px;
+  background:none;cursor:pointer;
+}
+.rt input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.rt input[type=color]::-webkit-color-swatch{border:1px solid rgba(0,0,0,.3);border-radius:3px}
+
+/* ---------- tessere ---------- */
+.tile{
+  width:var(--tile);height:var(--tile);border-radius:var(--radius-sm);
+  background:var(--bg4);overflow:hidden;position:relative;cursor:grab;
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+  user-select:none;touch-action:none;border:2px solid transparent;
+}
+.tile:hover{border-color:var(--line2)}
+.tile.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.tile.dragging{opacity:.35}
+.tile img{width:100%;height:100%;object-fit:cover;pointer-events:none;display:block}
+.tile .txt{
+  padding:4px;text-align:center;font-size:12px;font-weight:600;line-height:1.2;
+  word-break:break-word;overflow:hidden;max-height:100%;pointer-events:none;
+}
+.tile .cap{
+  position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);color:#fff;
+  font-size:9.5px;padding:2px 3px;text-align:center;line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+}
+.placeholder{
+  width:var(--tile);height:var(--tile);border-radius:var(--radius-sm);
+  border:2px dashed var(--accent);flex:0 0 auto;background:rgba(76,141,255,.09);
+}
+#ghost{
+  position:fixed;pointer-events:none;z-index:9999;opacity:.9;
+  box-shadow:var(--shadow);border-radius:var(--radius-sm);overflow:hidden;
+}
+.ghost-badge{
+  position:absolute;top:-7px;right:-7px;background:var(--accent);color:#fff;
+  border-radius:11px;min-width:22px;height:22px;display:flex;align-items:center;
+  justify-content:center;font-size:11px;font-weight:700;padding:0 5px;
+}
+
+/* ---------- pool ---------- */
+#pool{
+  width:290px;background:var(--bg2);border-left:1px solid var(--line);
+  display:flex;flex-direction:column;transition:width .18s;
+}
+#pool.collapsed{width:0;min-width:0;overflow:hidden;border-left:none}
+.pool-head{padding:10px;border-bottom:1px solid var(--line);display:flex;
+  flex-direction:column;gap:7px}
+.pool-title{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.9px;color:var(--fg3)}
+.pool-title b{color:var(--accent);font-size:12px}
+#search{
+  width:100%;padding:7px 9px;background:var(--bg);border:1px solid var(--line);
+  border-radius:var(--radius-sm);outline:none;font-size:13px;
+}
+#search:focus{border-color:var(--accent)}
+#poolItems{
+  flex:1;overflow-y:auto;padding:8px;display:flex;flex-wrap:wrap;gap:4px;
+  align-content:flex-start;
+}
+#poolItems.drag-over{background:rgba(76,141,255,.06)}
+.pool-empty{
+  width:100%;padding:34px 16px;text-align:center;color:var(--fg3);font-size:12.5px;
+  line-height:1.7;
+}
+.pool-foot{padding:8px;border-top:1px solid var(--line);display:flex;gap:5px;flex-wrap:wrap}
+.pool-foot .btn{flex:1;justify-content:center;min-width:0}
+
+/* ---------- modal ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;
+  justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(3px);
+}
+.overlay[hidden]{display:none}
+.modal{
+  background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);width:100%;max-width:520px;max-height:88vh;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.modal.wide{max-width:680px}
+.m-head{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;
+  align-items:center;gap:10px}
+.m-head h2{font-size:15.5px;font-weight:600;flex:1}
+.m-body{padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.m-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;
+  justify-content:flex-end;gap:8px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.7px;color:var(--fg3)}
+.field .hint{font-size:12px;color:var(--fg3);line-height:1.5}
+.inp,textarea.inp,select.inp{
+  width:100%;padding:9px 11px;background:var(--bg);border:1px solid var(--line);
+  border-radius:var(--radius-sm);outline:none;font-size:13.5px;font-family:var(--font);
+}
+.inp:focus{border-color:var(--accent)}
+textarea.inp{resize:vertical;min-height:150px;line-height:1.55}
+.drop{
+  border:2px dashed var(--line2);border-radius:var(--radius);padding:30px 20px;
+  text-align:center;color:var(--fg2);cursor:pointer;transition:.15s;
+}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(76,141,255,.07);color:var(--fg)}
+.drop b{display:block;font-size:14px;margin-bottom:5px;color:var(--fg)}
+.drop small{font-size:11.5px;color:var(--fg3)}
+.tabs{display:flex;gap:3px;background:var(--bg);padding:3px;border-radius:var(--radius-sm)}
+.tab{flex:1;padding:7px;text-align:center;border-radius:5px;font-size:13px;
+  color:var(--fg2);font-weight:500}
+.tab:hover{color:var(--fg)}
+.tab.active{background:var(--bg3);color:var(--fg)}
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.preset{
+  padding:11px 12px;background:var(--bg);border:1px solid var(--line);
+  border-radius:var(--radius-sm);text-align:left;transition:.13s;
+}
+.preset:hover{border-color:var(--accent);background:var(--bg3)}
+.preset b{display:block;font-size:13px;margin-bottom:3px}
+.preset small{font-size:11px;color:var(--fg3);line-height:1.4}
+.swatches{display:flex;gap:4px;margin-top:7px}
+.swatches i{width:15px;height:15px;border-radius:3px;display:block}
+.row-flex{display:flex;gap:10px;align-items:flex-end}
+.row-flex .field{flex:1}
+
+/* ---------- toast ---------- */
+#toasts{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:2000;
+  display:flex;flex-direction:column;gap:7px;align-items:center;pointer-events:none}
+.toast{
+  background:var(--bg4);color:var(--fg);padding:9px 16px;border-radius:20px;
+  font-size:13px;box-shadow:var(--shadow);border:1px solid var(--line2);
+  animation:tin .22s ease;max-width:80vw;
+}
+.toast.err{background:var(--danger);color:#fff;border-color:transparent}
+.toast.ok{background:var(--ok);color:#06210f;border-color:transparent}
+@keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+kbd{
+  background:var(--bg);border:1px solid var(--line2);border-bottom-width:2px;
+  border-radius:4px;padding:1px 5px;font-size:11px;font-family:ui-monospace,monospace;
+}
+.shortcuts{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:13px;
+  align-items:center}
+.shortcuts span{color:var(--fg2)}
+@media(max-width:900px){
+  #sidebar{position:absolute;z-index:50;height:100%;box-shadow:var(--shadow)}
+  #pool{width:230px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside id="sidebar">
+    <div class="side-head">
+      <div class="logo">Tier<span>Forge</span></div>
+    </div>
+    <div class="side-sub">Le mie tier list</div>
+    <div id="projList"></div>
+    <div class="side-foot">
+      <button class="btn" id="bNew">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Nuova tier list
+      </button>
+      <button class="btn ghost" id="bDup">
+        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> Duplica
+      </button>
+      <button class="btn ghost" id="bImportJson">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Importa JSON
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div id="main">
+    <div id="toolbar">
+      <button class="btn ghost icon" id="bSide" title="Mostra/nascondi sidebar">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <input id="title" value="Nuova tier list" spellcheck="false">
+      <div class="sep"></div>
+
+      <button class="btn ghost icon" id="bUndo" title="Annulla (Ctrl+Z)">
+        <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M3.5 13a9 9 0 1 0 2.3-6.3L3 10"/></svg>
+      </button>
+      <button class="btn ghost icon" id="bRedo" title="Ripeti (Ctrl+Y)">
+        <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M20.5 13a9 9 0 1 1-2.3-6.3L21 10"/></svg>
+      </button>
+      <div class="sep"></div>
+
+      <button class="btn" id="bAddText">
+        <svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg> <span class="lbl">Testo</span>
+      </button>
+      <button class="btn" id="bAddImg">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg> <span class="lbl">Immagini</span>
+      </button>
+      <button class="btn ghost" id="bRows">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="14" width="18" height="5" rx="1"/></svg> <span class="lbl">Righe</span>
+      </button>
+
+      <div class="spacer"></div>
+
+      <div class="sep"></div>
+      <label class="btn ghost zoom" style="gap:8px" title="Dimensione tessere">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <input type="range" id="tileSize" min="56" max="160" step="4" value="96" style="width:70px">
+      </label>
+      <button class="btn ghost icon" id="bTheme" title="Tema chiaro/scuro">
+        <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <button class="btn ghost icon" id="bHelp" title="Scorciatoie">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>
+      </button>
+      <div class="sep"></div>
+      <button class="btn primary" id="bExport">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5-5 5 5M12 5v12"/></svg> <span class="lbl">Esporta</span>
+      </button>
+    </div>
+
+    <div id="boardWrap"><div id="board"></div></div>
+  </div>
+
+  <!-- ============ POOL ============ -->
+  <aside id="pool">
+    <div class="pool-head">
+      <div class="pool-title">
+        <button class="btn ghost icon" id="bPoolTog" style="padding:2px 4px" title="Nascondi">
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+        Da ordinare <b id="poolCount">0</b>
+      </div>
+      <input id="search" placeholder="Cerca..." spellcheck="false">
+    </div>
+    <div id="poolItems"></div>
+    <div class="pool-foot">
+      <button class="btn ghost" id="bShuffle" title="Mescola">
+        <svg viewBox="0 0 24 24"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg> Mescola
+      </button>
+      <button class="btn ghost" id="bResetAll" title="Riporta tutte le tessere nel pool">
+        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Svuota board
+      </button>
+    </div>
+  </aside>
+</div>
+
+<div id="toasts"></div>
+<input type="file" id="filePick" accept="image/*" multiple hidden>
+<input type="file" id="jsonPick" accept=".json,application/json" hidden>
+
+<!-- ============ MODAL: TESTO ============ -->
+<div class="overlay" id="mText" hidden>
+  <div class="modal">
+    <div class="m-head"><h2>Aggiungi tessere testuali</h2>
+      <button class="btn ghost icon" data-close>&times;</button></div>
+    <div class="m-body">
+      <div class="field">
+        <label>Una voce per riga</label>
+        <textarea class="inp" id="txtBulk" spellcheck="false"
+          placeholder="metro&#10;chilogrammo&#10;secondo&#10;ampere&#10;kelvin"></textarea>
+        <div class="hint">Incolla un elenco: ogni riga diventa una tessera. Le righe vuote e i duplicati vengono ignorati. Separatori <kbd>,</kbd> <kbd>;</kbd> <kbd>Tab</kbd> riconosciuti automaticamente se non ci sono a capo.</div>
+      </div>
+      <div class="field">
+        <label>Oppure parti da un preset</label>
+        <button class="btn primary" id="loadAllUnits" style="justify-content:center;margin-bottom:4px">
+          <svg viewBox="0 0 24 24"><path d="M12 3v13M7 12l5 5 5-5M4 21h16"/></svg>
+          <span>Carica TUTTE le unità di misura</span>
+        </button>
+        <div class="presets" id="dataPresets"></div>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn ghost" data-close>Annulla</button>
+      <button class="btn primary" id="txtAdd">Aggiungi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: IMMAGINI ============ -->
+<div class="overlay" id="mImg" hidden>
+  <div class="modal">
+    <div class="m-head"><h2>Importa immagini</h2>
+      <button class="btn ghost icon" data-close>&times;</button></div>
+    <div class="m-body">
+      <div class="drop" id="imgDrop">
+        <b>Trascina qui immagini o una cartella</b>
+        <small>oppure clicca per scegliere i file &middot; incolla con <kbd>Ctrl+V</kbd></small>
+      </div>
+      <div class="field">
+        <label>Importa da URL (uno per riga)</label>
+        <textarea class="inp" id="urlBulk" style="min-height:88px" spellcheck="false"
+          placeholder="https://esempio.com/a.png&#10;https://esempio.com/b.jpg"></textarea>
+        <div class="hint">Il sito remoto deve consentire il download cross-origin (CORS), altrimenti l&rsquo;immagine non potr&agrave; essere esportata nel PNG.</div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--fg2)">
+        <input type="checkbox" id="useNames" checked> Usa il nome del file come etichetta
+      </label>
+    </div>
+    <div class="m-foot">
+      <button class="btn ghost" data-close>Chiudi</button>
+      <button class="btn primary" id="urlAdd">Scarica URL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: RIGHE ============ -->
+<div class="overlay" id="mRows" hidden>
+  <div class="modal">
+    <div class="m-head"><h2>Struttura righe</h2>
+      <button class="btn ghost icon" data-close>&times;</button></div>
+    <div class="m-body">
+      <div class="field">
+        <label>Preset (sostituisce le righe attuali)</label>
+        <div class="presets" id="rowPresets"></div>
+        <div class="hint">Le tessere gi&agrave; posizionate tornano nel pool se la loro riga sparisce.</div>
+      </div>
+    </div>
+    <div class="m-foot"><button class="btn ghost" data-close>Chiudi</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: EXPORT ============ -->
+<div class="overlay" id="mExp" hidden>
+  <div class="modal">
+    <div class="m-head"><h2>Esporta</h2>
+      <button class="btn ghost icon" data-close>&times;</button></div>
+    <div class="m-body">
+      <div class="field">
+        <label>Immagine PNG</label>
+        <div class="row-flex">
+          <div class="field">
+            <select class="inp" id="expScale">
+              <option value="1">1x — standard</option>
+              <option value="2" selected>2x — alta risoluzione</option>
+              <option value="4">4x — stampa</option>
+            </select>
+          </div>
+          <button class="btn primary" id="expPng" style="height:38px">Scarica PNG</button>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;
+          color:var(--fg2);text-transform:none;letter-spacing:0;font-weight:400;margin-top:2px">
+          <input type="checkbox" id="expPool"> Includi anche le tessere non ordinate
+        </label>
+      </div>
+      <div class="field">
+        <label>Progetto JSON</label>
+        <div class="hint">Backup completo (righe, tessere e immagini incorporate). Riapribile con &ldquo;Importa JSON&rdquo;.</div>
+        <button class="btn" id="expJson" style="justify-content:center">Scarica JSON</button>
+      </div>
+      <div class="field">
+        <label>Testo</label>
+        <div class="hint">Elenco in formato testuale, utile per incollare altrove.</div>
+        <button class="btn" id="expTxt" style="justify-content:center">Copia negli appunti</button>
+      </div>
+    </div>
+    <div class="m-foot"><button class="btn ghost" data-close>Chiudi</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: HELP ============ -->
+<div class="overlay" id="mHelp" hidden>
+  <div class="modal">
+    <div class="m-head"><h2>Scorciatoie</h2>
+      <button class="btn ghost icon" data-close>&times;</button></div>
+    <div class="m-body">
+      <div class="shortcuts">
+        <kbd>Ctrl</kbd><span>+ clic su una tessera &mdash; selezione multipla</span>
+        <kbd>Shift</kbd><span>+ clic &mdash; seleziona un intervallo</span>
+        <kbd>Ctrl+A</kbd><span>seleziona tutte le tessere del pool</span>
+        <kbd>Esc</kbd><span>deseleziona / chiudi finestra</span>
+        <kbd>Canc</kbd><span>elimina le tessere selezionate</span>
+        <kbd>Ctrl+Z</kbd><span>annulla</span>
+        <kbd>Ctrl+Y</kbd><span>ripeti</span>
+        <kbd>Ctrl+V</kbd><span>incolla immagini dagli appunti</span>
+        <kbd>1</kbd>&hellip;<kbd>9</kbd><span>manda la selezione nella riga N</span>
+        <kbd>0</kbd><span>rimanda la selezione nel pool</span>
+      </div>
+      <div class="hint">Trascina una tessera per spostarla. Se pi&ugrave; tessere sono selezionate, si spostano tutte insieme. Il pallino a sinistra di ogni riga ne cambia il colore; le frecce la spostano in alto o in basso.</div>
+    </div>
+    <div class="m-foot"><button class="btn ghost" data-close>Chiudi</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   TierForge — tier list maker single-file.
+   Stato in memoria, persistenza IndexedDB (progetti JSON + immagini Blob).
+   ========================================================================= */
+
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ---------------------------------------------------------------- toast */
+function toast(msg, kind = "") {
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.textContent = msg;
+  $("#toasts").appendChild(el);
+  setTimeout(() => {
+    el.style.transition = "opacity .3s";
+    el.style.opacity = "0";
+    setTimeout(() => el.remove(), 300);
+  }, 2400);
+}
+
+/* ============================== IndexedDB ============================== */
+const DB = (() => {
+  let db = null;
+  function open() {
+    if (db) return Promise.resolve(db);
+    return new Promise((res, rej) => {
+      const rq = indexedDB.open("tierforge", 1);
+      rq.onupgradeneeded = () => {
+        const d = rq.result;
+        if (!d.objectStoreNames.contains("projects")) d.createObjectStore("projects", { keyPath: "id" });
+        if (!d.objectStoreNames.contains("blobs"))    d.createObjectStore("blobs");
+        if (!d.objectStoreNames.contains("meta"))     d.createObjectStore("meta");
+      };
+      rq.onsuccess = () => { db = rq.result; res(db); };
+      rq.onerror   = () => rej(rq.error);
+    });
+  }
+  const tx = async (store, mode, fn) => {
+    const d = await open();
+    return new Promise((res, rej) => {
+      const t = d.transaction(store, mode);
+      const r = fn(t.objectStore(store));
+      t.oncomplete = () => res(r && r.result);
+      t.onerror    = () => rej(t.error);
+    });
+  };
+  return {
+    getAllProjects: () => tx("projects", "readonly",  s => s.getAll()),
+    putProject:  p    => tx("projects", "readwrite", s => s.put(p)),
+    delProject:  id   => tx("projects", "readwrite", s => s.delete(id)),
+    getBlob:     k    => tx("blobs",    "readonly",  s => s.get(k)),
+    putBlob:  (k, b)  => tx("blobs",    "readwrite", s => s.put(b, k)),
+    delBlob:     k    => tx("blobs",    "readwrite", s => s.delete(k)),
+    allBlobKeys: ()   => tx("blobs",    "readonly",  s => s.getAllKeys()),
+    getMeta:     k    => tx("meta",     "readonly",  s => s.get(k)),
+    putMeta:  (k, v)  => tx("meta",     "readwrite", s => s.put(v, k)),
+  };
+})();
+
+/* ============================== PRESET ============================== */
+const ROW_PRESETS = {
+  classic: {
+    name: "Classico S–F",
+    rows: [["S","#ff7f7f"],["A","#ffbf7f"],["B","#ffdf80"],["C","#ffff7f"],
+           ["D","#bfff7f"],["E","#7fbfff"],["F","#bf7fff"]],
+  },
+  sabc: {
+    name: "Compatto S–D",
+    rows: [["S","#ff7f7f"],["A","#ffbf7f"],["B","#ffff7f"],["C","#bfff7f"],["D","#7fbfff"]],
+  },
+  giudizio: {
+    name: "Giudizio",
+    rows: [["Ottimo","#7ddf9a"],["Buono","#c9e87f"],["Discreto","#ffe37f"],
+           ["Scarso","#ffb07f"],["Pessimo","#ff8080"]],
+  },
+  uso: {
+    name: "Frequenza d'uso",
+    rows: [["Quotidiano","#7ddf9a"],["Frequente","#c9e87f"],["Raro","#ffe37f"],
+           ["Mai visto","#ffb07f"],["Obsoleto","#b9a7c9"]],
+  },
+  voto: {
+    name: "Voto 1–10",
+    rows: [["10","#6fe39a"],["9","#9be07f"],["8","#c9e87f"],["7","#ffe37f"],
+           ["6","#ffc97f"],["5","#ffab7f"],["≤4","#ff8080"]],
+  },
+  vuoto: {
+    name: "Vuoto (3 righe)",
+    rows: [["","#ff7f7f"],["","#ffdf80"],["","#7fbfff"]],
+  },
+};
+
+const DATA_PRESETS = {
+  siBase: {
+    name: "SI — Unità di base",
+    desc: "Le 7 grandezze fondamentali",
+    items: ["metro (m)","chilogrammo (kg)","secondo (s)","ampere (A)",
+            "kelvin (K)","mole (mol)","candela (cd)"],
+  },
+  siDeriv: {
+    name: "SI — Unità derivate",
+    desc: "Le 22 con nome proprio",
+    items: ["radiante (rad)","steradiante (sr)","hertz (Hz)","newton (N)","pascal (Pa)",
+            "joule (J)","watt (W)","coulomb (C)","volt (V)","farad (F)","ohm (Ω)",
+            "siemens (S)","weber (Wb)","tesla (T)","henry (H)","grado Celsius (°C)",
+            "lumen (lm)","lux (lx)","becquerel (Bq)","gray (Gy)","sievert (Sv)","katal (kat)"],
+  },
+  siComposte: {
+    name: "SI — Composte",
+    desc: "Grandezze senza nome proprio",
+    items: ["metro quadrato (m²)","metro cubo (m³)","metro al secondo (m/s)",
+            "metro al secondo quadrato (m/s²)","radiante al secondo (rad/s)",
+            "chilogrammo al metro cubo (kg/m³)","metro cubo al chilogrammo (m³/kg)",
+            "ampere al metro quadrato (A/m²)","mole al metro cubo (mol/m³)",
+            "candela al metro quadrato (cd/m²)","newton metro (N·m)",
+            "newton al metro (N/m)","pascal secondo (Pa·s)","joule al kelvin (J/K)",
+            "joule al chilogrammo (J/kg)","watt al metro quadrato (W/m²)",
+            "watt al metro kelvin (W/(m·K))","volt al metro (V/m)",
+            "coulomb al metro cubo (C/m³)","farad al metro (F/m)","henry al metro (H/m)",
+            "joule alla mole (J/mol)","coulomb al chilogrammo (C/kg)","gray al secondo (Gy/s)",
+            "watt allo steradiante (W/sr)","katal al metro cubo (kat/m³)"],
+  },
+  nonSi: {
+    name: "Accettate col SI",
+    desc: "Minuto, litro, tonnellata…",
+    items: ["minuto (min)","ora (h)","giorno (d)","grado (°)","minuto d'arco (′)",
+            "secondo d'arco (″)","ettaro (ha)","litro (L)","tonnellata (t)",
+            "dalton (Da)","elettronvolt (eV)","unità astronomica (au)","neper (Np)",
+            "bel (B)","decibel (dB)","unità di massa atomica (u)"],
+  },
+  prefissi: {
+    name: "Prefissi SI",
+    desc: "Da quecto a quetta",
+    items: ["quetta (Q) 10³⁰","ronna (R) 10²⁷","yotta (Y) 10²⁴","zetta (Z) 10²¹",
+            "exa (E) 10¹⁸","peta (P) 10¹⁵","tera (T) 10¹²","giga (G) 10⁹",
+            "mega (M) 10⁶","kilo (k) 10³","etto (h) 10²","deca (da) 10¹",
+            "deci (d) 10⁻¹","centi (c) 10⁻²","milli (m) 10⁻³","micro (µ) 10⁻⁶",
+            "nano (n) 10⁻⁹","pico (p) 10⁻¹²","femto (f) 10⁻¹⁵","atto (a) 10⁻¹⁸",
+            "zepto (z) 10⁻²¹","yocto (y) 10⁻²⁴","ronto (r) 10⁻²⁷","quecto (q) 10⁻³⁰"],
+  },
+  prefissiBin: {
+    name: "Prefissi binari",
+    desc: "IEC 80000-13",
+    items: ["kibi (Ki) 2¹⁰","mebi (Mi) 2²⁰","gibi (Gi) 2³⁰","tebi (Ti) 2⁴⁰",
+            "pebi (Pi) 2⁵⁰","exbi (Ei) 2⁶⁰","zebi (Zi) 2⁷⁰","yobi (Yi) 2⁸⁰"],
+  },
+  lunghezza: {
+    name: "Lunghezza",
+    desc: "Da Planck al parsec",
+    items: ["lunghezza di Planck","fermi (fm)","angstrom (Å)","nanometro (nm)",
+            "micrometro (µm)","millimetro (mm)","centimetro (cm)","decimetro (dm)",
+            "metro (m)","chilometro (km)","pollice (in)","piede (ft)","iarda (yd)",
+            "braccio (fathom)","pertica (rod)","catena (chain)","furlong",
+            "miglio (mi)","lega (league)","miglio nautico (nmi)","raggio terrestre",
+            "unità astronomica (au)","anno luce (ly)","parsec (pc)","kiloparsec (kpc)",
+            "megaparsec (Mpc)","mil (thou)","punto tipografico (pt)","pica","ell",
+            "cubito","palmo","span","braccio italiano","canna","verst","li cinese"],
+  },
+  massa: {
+    name: "Massa",
+    desc: "Dal dalton alla massa solare",
+    items: ["massa di Planck","dalton (Da)","microgrammo (µg)","milligrammo (mg)",
+            "carato (ct)","grammo (g)","ettogrammo (hg)","chilogrammo (kg)",
+            "quintale (q)","tonnellata (t)","grano (gr)","dram (dr)","oncia (oz)",
+            "oncia troy (ozt)","libbra (lb)","stone (st)","quarter","hundredweight (cwt)",
+            "tonnellata corta","tonnellata lunga","slug","libbra troy","pennyweight (dwt)",
+            "scrupolo","dracma","tael","catty","picul","massa solare (M☉)","massa terrestre"],
+  },
+  tempo: {
+    name: "Tempo",
+    desc: "Dal Planck all'eone",
+    items: ["tempo di Planck","yoctosecondo (ys)","zeptosecondo (zs)","attosecondo (as)",
+            "femtosecondo (fs)","picosecondo (ps)","nanosecondo (ns)","microsecondo (µs)",
+            "millisecondo (ms)","jiffy","secondo (s)","minuto (min)","ora (h)",
+            "giorno (d)","giorno siderale","settimana","fortnight","quindicina",
+            "mese","mese sinodico","trimestre","semestre","anno","anno tropico",
+            "anno siderale","anno giuliano","lustro","olimpiade","decennio","generazione",
+            "secolo","millennio","era geologica","eone","shake","microfortnight"],
+  },
+  superficie: {
+    name: "Superficie",
+    desc: "Barn, ettaro, acro…",
+    items: ["barn (b)","millimetro quadrato (mm²)","centimetro quadrato (cm²)",
+            "metro quadrato (m²)","ara (a)","ettaro (ha)","chilometro quadrato (km²)",
+            "pollice quadrato (in²)","piede quadrato (ft²)","iarda quadrata (yd²)",
+            "perch","rood","acro (ac)","miglio quadrato (mi²)","sezione","township",
+            "tavola","pertica quadrata","dunam","tsubo","mu cinese"],
+  },
+  volume: {
+    name: "Volume",
+    desc: "Litro, gallone, barile…",
+    items: ["millilitro (mL)","centilitro (cL)","decilitro (dL)","litro (L)",
+            "ettolitro (hL)","metro cubo (m³)","centimetro cubo (cm³)","pollice cubo (in³)",
+            "piede cubo (ft³)","iarda cubica (yd³)","cucchiaino (tsp)","cucchiaio (tbsp)",
+            "oncia fluida (fl oz)","gill","tazza (cup)","pinta (pt)","quarto (qt)",
+            "gallone (gal)","peck","staio (bushel)","barile (bbl)","barile di petrolio",
+            "hogshead","botte","dram fluido","minim","cordata (cord)","acre-piede"],
+  },
+  velocita: {
+    name: "Velocità e accelerazione",
+    desc: "Nodo, mach, g…",
+    items: ["metro al secondo (m/s)","chilometro orario (km/h)","miglio orario (mph)",
+            "piede al secondo (ft/s)","nodo (kn)","mach","velocità della luce (c)",
+            "g (accelerazione di gravità)","gal (Gal)","metro al secondo quadrato (m/s²)",
+            "giri al minuto (rpm)","radiante al secondo (rad/s)","hertz (Hz)",
+            "furlong per fortnight"],
+  },
+  energia: {
+    name: "Energia e potenza",
+    desc: "Joule, caloria, cavallo…",
+    items: ["joule (J)","erg","caloria (cal)","chilocaloria (kcal)","elettronvolt (eV)",
+            "chilowattora (kWh)","BTU","therm","tonnellata di TNT","quad",
+            "tonnellata equivalente di petrolio (tep)","hartree","rydberg",
+            "watt (W)","chilowatt (kW)","megawatt (MW)","cavallo vapore (CV)",
+            "horsepower (hp)","BTU orario","piede-libbra (ft·lb)","frigoria",
+            "energia di Planck"],
+  },
+  pressione: {
+    name: "Pressione e forza",
+    desc: "Pascal, bar, PSI…",
+    items: ["pascal (Pa)","ettopascal (hPa)","chilopascal (kPa)","megapascal (MPa)",
+            "bar","millibar (mbar)","atmosfera (atm)","atmosfera tecnica (at)",
+            "torr","millimetro di mercurio (mmHg)","pollice di mercurio (inHg)",
+            "metro d'acqua (mH₂O)","PSI","barye","newton (N)","chilonewton (kN)",
+            "dyne","chilogrammo-forza (kgf)","libbra-forza (lbf)","poundal","sthène"],
+  },
+  temperatura: {
+    name: "Temperatura",
+    desc: "Kelvin, Celsius, Fahrenheit…",
+    items: ["kelvin (K)","grado Celsius (°C)","grado Fahrenheit (°F)","grado Rankine (°R)",
+            "grado Réaumur (°Ré)","grado Delisle (°De)","grado Newton (°N)",
+            "grado Rømer (°Rø)","temperatura di Planck","millikelvin (mK)"],
+  },
+  angoli: {
+    name: "Angoli",
+    desc: "Radiante, grado, gon…",
+    items: ["radiante (rad)","milliradiante (mrad)","grado (°)","minuto d'arco (′)",
+            "secondo d'arco (″)","gon (grado centesimale)","giro (rivoluzione)",
+            "quadrante","sestante","punto della bussola","mil angolare",
+            "steradiante (sr)","grado quadrato","ora (ascensione retta)"],
+  },
+  elettro: {
+    name: "Elettromagnetismo",
+    desc: "Volt, ohm, tesla, gauss…",
+    items: ["ampere (A)","milliampere (mA)","coulomb (C)","amperora (Ah)","volt (V)",
+            "millivolt (mV)","chilovolt (kV)","ohm (Ω)","kiloohm (kΩ)","siemens (S)",
+            "mho","farad (F)","microfarad (µF)","picofarad (pF)","henry (H)",
+            "weber (Wb)","tesla (T)","gauss (G)","maxwell (Mx)","oersted (Oe)",
+            "gilbert (Gb)","statvolt","abampere","franklin (Fr)","debye (D)",
+            "voltampere (VA)","var","biot (Bi)"],
+  },
+  luce: {
+    name: "Luce e radiazione",
+    desc: "Lumen, lux, sievert…",
+    items: ["candela (cd)","lumen (lm)","lux (lx)","phot","footcandle","stilb",
+            "lambert","footlambert","nit","apostilb","talbot","becquerel (Bq)",
+            "curie (Ci)","rutherford","gray (Gy)","rad","sievert (Sv)","rem",
+            "roentgen (R)","banana equivalent dose"],
+  },
+  informatica: {
+    name: "Informatica",
+    desc: "Byte, bit, FLOPS…",
+    items: ["bit (b)","nibble","byte (B)","kilobyte (kB)","kibibyte (KiB)",
+            "megabyte (MB)","mebibyte (MiB)","gigabyte (GB)","gibibyte (GiB)",
+            "terabyte (TB)","tebibyte (TiB)","petabyte (PB)","exabyte (EB)",
+            "zettabyte (ZB)","yottabyte (YB)","bit al secondo (bps)","baud",
+            "hertz (Hz)","FLOPS","MIPS","DPI","PPI","pixel (px)","megapixel (MP)",
+            "punto (pt)","em","rem","nat","shannon","hartley"],
+  },
+  chimica: {
+    name: "Chimica e materia",
+    desc: "Mole, molarità, pH…",
+    items: ["mole (mol)","millimole (mmol)","molarità (M)","molalità (m)",
+            "normalità (N)","parti per milione (ppm)","parti per miliardo (ppb)",
+            "percentuale (%)","per mille (‰)","pH","numero di Avogadro","dalton (Da)",
+            "katal (kat)","unità enzimatica (U)","equivalente","frazione molare",
+            "grado Brix (°Bx)","grado Baumé (°Bé)","API gravity","grado di durezza francese"],
+  },
+  nautica: {
+    name: "Nautica e aviazione",
+    desc: "Nodo, braccio, cavo…",
+    items: ["nodo (kn)","miglio nautico (nmi)","braccio (fathom)","cavo (cable)",
+            "lega nautica","piede (ft)","livello di volo (FL)","tonnellata di stazza (GT)",
+            "tonnellata di portata lorda (DWT)","scala Beaufort","scala Douglas",
+            "punto della bussola","quarta","nodo di deriva"],
+  },
+  cucina: {
+    name: "Cucina",
+    desc: "Tazza, cucchiaio, pizzico…",
+    items: ["cucchiaino (tsp)","cucchiaio (tbsp)","tazza (cup)","pizzico","presa",
+            "bicchiere","oncia fluida (fl oz)","pinta (pt)","quarto (qt)","gallone (gal)",
+            "grammo (g)","etto (hg)","chilo (kg)","libbra (lb)","oncia (oz)",
+            "quanto basta (q.b.)","noce (di burro)","mestolo","goccia"],
+  },
+  storiche: {
+    name: "Storiche e regionali",
+    desc: "Cubito, staio, lega…",
+    items: ["cubito egizio","piede romano","passo romano","miglio romano","stadio",
+            "lega","braccio fiorentino","canna napoletana","trabucco","pertica",
+            "staio","moggio","rubbio","oncia napoletana","libbra romana","talento",
+            "mina","siclo","denaro","soldo","verst","arshin","pud","koku","shaku",
+            "ken","ri giapponese","li cinese","jin","chi","dhanush","yojana"],
+  },
+  curiose: {
+    name: "Curiose e informali",
+    desc: "Smoot, micromort, banana…",
+    items: ["smoot","micromort","microlort","banana equivalent dose","furlong per fortnight",
+            "millihelen","barn","outhouse","shed","jiffy","shake","beard-second",
+            "donkey power","sagan","warhol","mickey","garn","scoville (SHU)",
+            "hobo power","altezza in giraffe","campo da calcio","piscina olimpica",
+            "big mac index","attoparsec","nanoacre","sydharb","wiffle"],
+  },
+  sport: {
+    name: "Sport e fitness",
+    desc: "MET, VO₂max, watt…",
+    items: ["MET","VO₂max","battiti al minuto (bpm)","watt (W)","RM (ripetizione massimale)",
+            "passo (min/km)","split (min/500m)","cadenza (spm)","TSS","FTP",
+            "chilocaloria (kcal)","passi","piano (floor)","punto ELO","handicap (golf)",
+            "set","round","frazione","giro (lap)","maratona"],
+  },
+  economia: {
+    name: "Economia e finanza",
+    desc: "Punto base, TAEG, PIL…",
+    items: ["punto base (bp)","percentuale (%)","TAEG","TAN","PIL pro capite",
+            "inflazione","indice dei prezzi (CPI)","spread","P/E ratio","EBITDA",
+            "ROI","ROE","market cap","volume di scambio","lotto","pip",
+            "oncia troy d'oro","barile di petrolio","staio di grano","container TEU"],
+  },
+};
+
+/* ============================== STATO ============================== */
+let state    = null;   // progetto corrente
+let projects = [];     // metadati di tutti i progetti
+let sel      = new Set();
+let undoStack = [], redoStack = [];
+const urlCache = new Map();   // itemId -> objectURL
+
+function blankProject(name = "Nuova tier list", presetKey = "classic") {
+  const p = ROW_PRESETS[presetKey];
+  return {
+    id: uid(),
+    name,
+    updated: Date.now(),
+    rows: p.rows.map(([label, color]) => ({ id: uid(), label, color, items: [] })),
+    pool: [],
+    items: {},           // id -> {id,type:'text'|'image',text?,blobKey?,label?}
+    settings: { tile: 96 },
+  };
+}
+
+/* --------------------------- undo / redo --------------------------- */
+function snapshot() {
+  return JSON.stringify({ rows: state.rows, pool: state.pool, items: state.items, name: state.name });
+}
+let lastSnap = null;
+function pushUndo() {
+  if (!state) return;
+  const s = lastSnap ?? snapshot();
+  undoStack.push(s);
+  if (undoStack.length > 60) undoStack.shift();
+  redoStack.length = 0;
+  lastSnap = null;
+  syncUndoButtons();
+}
+function applySnap(json) {
+  const d = JSON.parse(json);
+  state.rows = d.rows; state.pool = d.pool; state.items = d.items; state.name = d.name;
+  sel.clear();
+  $("#title").value = state.name;
+  renderAll(); save();
+}
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(snapshot());
+  applySnap(undoStack.pop());
+  syncUndoButtons();
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(snapshot());
+  applySnap(redoStack.pop());
+  syncUndoButtons();
+}
+function syncUndoButtons() {
+  $("#bUndo").disabled = !undoStack.length;
+  $("#bRedo").disabled = !redoStack.length;
+}
+
+/* ------------------------------ save ------------------------------ */
+let saveTimer = null;
+function save() {
+  if (!state) return;
+  state.updated = Date.now();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    await DB.putProject(JSON.parse(JSON.stringify(state)));
+    await DB.putMeta("last", state.id);
+    const i = projects.findIndex(p => p.id === state.id);
+    const meta = { id: state.id, name: state.name, updated: state.updated };
+    if (i < 0) projects.push(meta); else projects[i] = meta;
+    renderProjects();
+  }, 260);
+}
+
+/* --------------------------- immagini --------------------------- */
+async function imageURL(item) {
+  if (item.type !== "image") return null;
+  if (urlCache.has(item.id)) return urlCache.get(item.id);
+  const blob = await DB.getBlob(item.blobKey);
+  if (!blob) return null;
+  const url = URL.createObjectURL(blob);
+  urlCache.set(item.id, url);
+  return url;
+}
+
+// Ridimensiona a max 512px sul lato lungo: tiene il DB leggero e il render fluido.
+function downscale(file, max = 512) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const r = Math.min(1, max / Math.max(img.width, img.height));
+      if (r === 1 && file.size < 300_000) return res(file);
+      const c = document.createElement("canvas");
+      c.width  = Math.round(img.width  * r);
+      c.height = Math.round(img.height * r);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => res(b || file), "image/webp", 0.88);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("immagine non valida")); };
+    img.src = url;
+  });
+}
+
+async function addImageFiles(files, useNames = true) {
+  const imgs = [...files].filter(f => f.type.startsWith("image/"));
+  if (!imgs.length) { toast("Nessuna immagine trovata", "err"); return; }
+  pushUndo();
+  let ok = 0;
+  for (const f of imgs) {
+    try {
+      const blob = await downscale(f);
+      const id = uid(), key = "b_" + id;
+      await DB.putBlob(key, blob);
+      state.items[id] = {
+        id, type: "image", blobKey: key,
+        label: useNames ? f.name.replace(/\.[^.]+$/, "").slice(0, 60) : "",
+      };
+      state.pool.push(id);
+      ok++;
+    } catch { /* file corrotto: lo salto */ }
+  }
+  renderAll(); save();
+  toast(`${ok} immagini aggiunte`, "ok");
+}
+
+/* --------------------------- testo --------------------------- */
+function addTextItems(raw) {
+  let parts = raw.split(/\r?\n/);
+  // Riga singola con separatori: la splitto comunque.
+  if (parts.filter(p => p.trim()).length === 1 && /[,;\t]/.test(raw)) parts = raw.split(/[,;\t]/);
+  const existing = new Set(Object.values(state.items)
+    .filter(i => i.type === "text").map(i => i.text.toLowerCase()));
+  const clean = [];
+  for (const p of parts) {
+    const t = p.trim();
+    if (!t || existing.has(t.toLowerCase())) continue;
+    existing.add(t.toLowerCase());
+    clean.push(t);
+  }
+  if (!clean.length) { toast("Niente da aggiungere", "err"); return 0; }
+  pushUndo();
+  for (const t of clean) {
+    const id = uid();
+    state.items[id] = { id, type: "text", text: t };
+    state.pool.push(id);
+  }
+  renderAll(); save();
+  toast(`${clean.length} tessere aggiunte`, "ok");
+  return clean.length;
+}
+
+/* ============================== RENDER ============================== */
+function tileEl(id) {
+  const it = state.items[id];
+  if (!it) return null;
+  const d = document.createElement("div");
+  d.className = "tile" + (sel.has(id) ? " sel" : "");
+  d.dataset.id = id;
+  if (it.type === "text") {
+    const s = document.createElement("div");
+    s.className = "txt";
+    s.textContent = it.text;
+    // Testi lunghi: rimpicciolisco il font per farli entrare nella tessera.
+    const n = it.text.length;
+    if (n > 14) s.style.fontSize = n > 34 ? "9px" : n > 22 ? "10px" : "11px";
+    d.appendChild(s);
+    d.title = it.text;
+  } else {
+    const img = document.createElement("img");
+    imageURL(it).then(u => { if (u) img.src = u; });
+    d.appendChild(img);
+    if (it.label) {
+      const c = document.createElement("div");
+      c.className = "cap";
+      c.textContent = it.label;
+      d.appendChild(c);
+    }
+    d.title = it.label || "immagine";
+  }
+  return d;
+}
+
+const svgIco = p => `<svg viewBox="0 0 24 24">${p}</svg>`;
+
+function renderBoard() {
+  const b = $("#board");
+  b.innerHTML = "";
+  state.rows.forEach((row, idx) => {
+    const r = document.createElement("div");
+    r.className = "row";
+    r.dataset.rowId = row.id;
+
+    const lab = document.createElement("div");
+    lab.className = "row-label";
+    lab.style.background = row.color;
+    const ta = document.createElement("textarea");
+    ta.value = row.label;
+    ta.rows = 1;
+    ta.spellcheck = false;
+    ta.addEventListener("input", () => { row.label = ta.value; save(); });
+    ta.addEventListener("focus", () => { lastSnap = snapshot(); });
+    ta.addEventListener("blur",  () => { if (lastSnap) { undoStack.push(lastSnap); lastSnap = null; syncUndoButtons(); } });
+    lab.appendChild(ta);
+
+    const items = document.createElement("div");
+    items.className = "row-items";
+    items.dataset.zone = row.id;
+    row.items.forEach(id => { const t = tileEl(id); if (t) items.appendChild(t); });
+
+    const tools = document.createElement("div");
+    tools.className = "row-tools";
+
+    const col = document.createElement("label");
+    col.className = "rt";
+    col.title = "Colore";
+    const ci = document.createElement("input");
+    ci.type = "color"; ci.value = row.color;
+    ci.addEventListener("input", () => { row.color = ci.value; lab.style.background = ci.value; save(); });
+    col.appendChild(ci);
+
+    const up = document.createElement("button");
+    up.className = "rt"; up.title = "Sposta su";
+    up.innerHTML = svgIco('<path d="m18 15-6-6-6 6"/>');
+    up.onclick = () => moveRow(idx, -1);
+
+    const dn = document.createElement("button");
+    dn.className = "rt"; dn.title = "Sposta giù";
+    dn.innerHTML = svgIco('<path d="m6 9 6 6 6-6"/>');
+    dn.onclick = () => moveRow(idx, 1);
+
+    const add = document.createElement("button");
+    add.className = "rt"; add.title = "Aggiungi riga sotto";
+    add.innerHTML = svgIco('<path d="M12 5v14M5 12h14"/>');
+    add.onclick = () => {
+      pushUndo();
+      state.rows.splice(idx + 1, 0,
+        { id: uid(), label: "", color: "#8f9bb0", items: [] });
+      renderAll(); save();
+    };
+
+    const del = document.createElement("button");
+    del.className = "rt"; del.title = "Elimina riga";
+    del.innerHTML = svgIco('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>');
+    del.onclick = () => {
+      if (state.rows.length <= 1) { toast("Serve almeno una riga", "err"); return; }
+      pushUndo();
+      state.pool.push(...row.items);
+      state.rows.splice(idx, 1);
+      renderAll(); save();
+    };
+
+    tools.append(col, up, dn, add, del);
+    r.append(lab, items, tools);
+    b.appendChild(r);
+  });
+}
+
+function moveRow(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= state.rows.length) return;
+  pushUndo();
+  const [r] = state.rows.splice(i, 1);
+  state.rows.splice(j, 0, r);
+  renderAll(); save();
+}
+
+function renderPool() {
+  const c = $("#poolItems");
+  c.innerHTML = "";
+  c.dataset.zone = "pool";
+  const q = $("#search").value.trim().toLowerCase();
+  const ids = q
+    ? state.pool.filter(id => {
+        const it = state.items[id];
+        return it && ((it.text || "") + (it.label || "")).toLowerCase().includes(q);
+      })
+    : state.pool;
+
+  if (!ids.length) {
+    const e = document.createElement("div");
+    e.className = "pool-empty";
+    e.innerHTML = q
+      ? "Nessun risultato per<br><b>" + q.replace(/</g, "&lt;") + "</b>"
+      : 'Nessuna tessera da ordinare.<br>Usa <b>Testo</b> o <b>Immagini</b><br>nella barra in alto.';
+    c.appendChild(e);
+  } else {
+    ids.forEach(id => { const t = tileEl(id); if (t) c.appendChild(t); });
+  }
+  $("#poolCount").textContent = state.pool.length;
+}
+
+function renderProjects() {
+  const c = $("#projList");
+  c.innerHTML = "";
+  [...projects].sort((a, b) => b.updated - a.updated).forEach(p => {
+    const d = document.createElement("div");
+    d.className = "proj" + (state && p.id === state.id ? " active" : "");
+    const n = document.createElement("div");
+    n.className = "proj-name";
+    n.textContent = p.name || "Senza nome";
+    const x = document.createElement("button");
+    x.className = "proj-x";
+    x.innerHTML = "&times;";
+    x.title = "Elimina";
+    x.onclick = async ev => {
+      ev.stopPropagation();
+      if (!confirm(`Eliminare "${p.name}"?`)) return;
+      await DB.delProject(p.id);
+      projects = projects.filter(q => q.id !== p.id);
+      if (state.id === p.id) {
+        if (projects.length) await loadProject(projects[0].id);
+        else { state = blankProject(); await save(); renderAll(); }
+      }
+      renderProjects();
+      gcBlobs();
+    };
+    d.append(n, x);
+    d.onclick = () => loadProject(p.id);
+    c.appendChild(d);
+  });
+}
+
+function renderAll() {
+  document.documentElement.style.setProperty("--tile", (state.settings.tile || 96) + "px");
+  renderBoard();
+  renderPool();
+  renderProjects();
+}
+
+// La sola selezione non cambia la struttura: alterno la classe sui nodi esistenti
+// invece di ricostruire il DOM (e di rilanciare le imageURL() di ogni tessera).
+function paintSel() {
+  $$(".tile").forEach(t => t.classList.toggle("sel", sel.has(t.dataset.id)));
+}
+
+/* ========================= DRAG & DROP =========================
+   Pointer Events invece dell'HTML5 DnD: serve il placeholder di inserimento
+   preciso e il supporto touch, che l'API nativa non dà.
+   ============================================================== */
+let drag = null;
+
+function zoneOf(el) {
+  return el && el.closest ? el.closest("[data-zone]") : null;
+}
+
+function itemsOfZone(z) {
+  if (z === "pool") return state.pool;
+  const r = state.rows.find(r => r.id === z);
+  return r ? r.items : null;
+}
+
+function onPointerDown(e) {
+  if (e.button !== undefined && e.button !== 0) return;
+  const tile = e.target.closest(".tile");
+  if (!tile) return;
+  const id = tile.dataset.id;
+
+  // ctrl/shift: solo selezione, niente drag.
+  if (e.ctrlKey || e.metaKey) {
+    sel.has(id) ? sel.delete(id) : sel.add(id);
+    paintSel();
+    return;
+  }
+  if (e.shiftKey) {
+    const zoneEl = zoneOf(tile);
+    const list = itemsOfZone(zoneEl.dataset.zone) || [];
+    const anchor = [...sel].filter(s => list.includes(s)).pop();
+    if (anchor) {
+      const a = list.indexOf(anchor), b = list.indexOf(id);
+      list.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(x => sel.add(x));
+    } else sel.add(id);
+    paintSel();
+    return;
+  }
+
+  const startX = e.clientX, startY = e.clientY;
+  let started = false;
+
+  const move = ev => {
+    if (!started) {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 5) return;
+      started = true;
+      beginDrag(id, tile, ev);
+    }
+    updateDrag(ev);
+  };
+  const up = ev => {
+    document.removeEventListener("pointermove", move);
+    document.removeEventListener("pointerup", up);
+    if (started) endDrag(ev);
+    else {
+      // clic semplice: seleziona solo questa
+      const only = sel.size === 1 && sel.has(id);
+      sel.clear();
+      if (!only) sel.add(id);
+      paintSel();
+    }
+  };
+  document.addEventListener("pointermove", move);
+  document.addEventListener("pointerup", up);
+  e.preventDefault();
+}
+
+function beginDrag(id, tile, e) {
+  // Se trascino una tessera selezionata, muovo tutta la selezione.
+  const ids = sel.has(id) && sel.size > 1 ? [...sel] : [id];
+  if (!sel.has(id)) { sel.clear(); sel.add(id); }
+
+  lastSnap = snapshot();
+
+  const ph = document.createElement("div");
+  ph.className = "placeholder";
+
+  const g = document.createElement("div");
+  g.id = "ghost";
+  const clone = tile.cloneNode(true);
+  clone.classList.remove("sel");
+  clone.style.margin = "0";
+  g.appendChild(clone);
+  if (ids.length > 1) {
+    const b = document.createElement("div");
+    b.className = "ghost-badge";
+    b.textContent = ids.length;
+    g.appendChild(b);
+  }
+  document.body.appendChild(g);
+
+  const rect = tile.getBoundingClientRect();
+  drag = { ids, ph, ghost: g, ox: e.clientX - rect.left, oy: e.clientY - rect.top };
+
+  ids.forEach(i => $$(`.tile[data-id="${i}"]`).forEach(t => t.classList.add("dragging")));
+  updateDrag(e);
+}
+
+function updateDrag(e) {
+  if (!drag) return;
+  drag.ghost.style.left = (e.clientX - drag.ox) + "px";
+  drag.ghost.style.top  = (e.clientY - drag.oy) + "px";
+
+  drag.ghost.style.display = "none";
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  drag.ghost.style.display = "";
+
+  const zone = zoneOf(under);
+  $$(".row.drag-over").forEach(r => r.classList.remove("drag-over"));
+  $("#poolItems").classList.remove("drag-over");
+
+  if (!zone) { drag.ph.remove(); drag.zone = null; return; }
+  drag.zone = zone.dataset.zone;
+  if (zone.id === "poolItems") zone.classList.add("drag-over");
+  else zone.closest(".row").classList.add("drag-over");
+
+  // Trova la tessera più vicina a destra/sotto per inserire il placeholder.
+  const tiles = [...zone.querySelectorAll(".tile:not(.dragging)")];
+  let target = null;
+  for (const t of tiles) {
+    const r = t.getBoundingClientRect();
+    if (e.clientY < r.bottom && e.clientX < r.left + r.width / 2) { target = t; break; }
+  }
+  const empty = zone.querySelector(".pool-empty");
+  if (empty) empty.remove();
+  if (target) zone.insertBefore(drag.ph, target);
+  else zone.appendChild(drag.ph);
+}
+
+function endDrag() {
+  if (!drag) return;
+  const { ids, ph, ghost, zone } = drag;
+  ghost.remove();
+
+  if (zone) {
+    const dest = itemsOfZone(zone);
+    if (dest) {
+      // Indice d'inserimento = posizione del placeholder tra le tessere rimaste.
+      const sib = [...ph.parentElement.children];
+      let idx = 0;
+      for (const el of sib) {
+        if (el === ph) break;
+        if (el.classList.contains("tile") && !ids.includes(el.dataset.id)) idx++;
+      }
+      // Rimuovo dalle vecchie posizioni prima di reinserire.
+      state.pool = state.pool.filter(i => !ids.includes(i));
+      state.rows.forEach(r => { r.items = r.items.filter(i => !ids.includes(i)); });
+      const target = itemsOfZone(zone);
+      target.splice(Math.min(idx, target.length), 0, ...ids);
+
+      if (lastSnap) { undoStack.push(lastSnap); redoStack.length = 0; syncUndoButtons(); }
+      lastSnap = null;
+      save();
+    }
+  }
+  ph.remove();
+  drag = null;
+  $$(".row.drag-over").forEach(r => r.classList.remove("drag-over"));
+  $("#poolItems").classList.remove("drag-over");
+  renderBoard(); renderPool();
+}
+
+/* ---- spostamento da tastiera ---- */
+function sendSelectionTo(zoneKey) {
+  if (!sel.size) { toast("Nessuna tessera selezionata", "err"); return; }
+  const dest = itemsOfZone(zoneKey);
+  if (!dest) return;
+  pushUndo();
+  const ids = [...sel];
+  state.pool = state.pool.filter(i => !ids.includes(i));
+  state.rows.forEach(r => { r.items = r.items.filter(i => !ids.includes(i)); });
+  itemsOfZone(zoneKey).push(...ids);
+  renderAll(); save();
+}
+
+function deleteSelection() {
+  if (!sel.size) return;
+  pushUndo();
+  const ids = [...sel];
+  ids.forEach(id => {
+    const it = state.items[id];
+    if (it && it.type === "image") {
+      DB.delBlob(it.blobKey);
+      const u = urlCache.get(id);
+      if (u) { URL.revokeObjectURL(u); urlCache.delete(id); }
+    }
+    delete state.items[id];
+  });
+  state.pool = state.pool.filter(i => !ids.includes(i));
+  state.rows.forEach(r => { r.items = r.items.filter(i => !ids.includes(i)); });
+  sel.clear();
+  renderAll(); save();
+  toast(`${ids.length} tessere eliminate`);
+}
+
+/* ========================= EXPORT PNG =========================
+   Disegno manuale su canvas: html2canvas sbaglia i font ed è una
+   dipendenza esterna che romperebbe l'uso offline.
+   ============================================================== */
+function wrapText(ctx, text, maxW, maxLines) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    const t = cur ? cur + " " + w : w;
+    if (ctx.measureText(t).width <= maxW) { cur = t; continue; }
+    if (cur) lines.push(cur);
+    // Parola singola più larga della tessera: la spezzo a forza.
+    if (ctx.measureText(w).width > maxW) {
+      let piece = "";
+      for (const ch of w) {
+        if (ctx.measureText(piece + ch).width > maxW) { lines.push(piece); piece = ch; }
+        else piece += ch;
+      }
+      cur = piece;
+    } else cur = w;
+    if (lines.length >= maxLines) break;
+  }
+  if (cur && lines.length < maxLines) lines.push(cur);
+  return lines.slice(0, maxLines);
+}
+
+async function exportPNG(scale, withPool) {
+  const S = scale;
+  const T = 96, PAD = 4, GAP = 4, LABW = 96, ROWGAP = 5;
+  const boardW = $("#board").clientWidth || 1100;
+  const W = Math.max(600, boardW);
+  const perRow = Math.max(1, Math.floor((W - LABW - PAD * 2) / (T + GAP)));
+
+  const light = document.documentElement.dataset.theme === "light";
+  const cBg   = light ? "#f2f4f8" : "#0e1116";
+  const cRow  = light ? "#ffffff" : "#151a22";
+  const cLine = light ? "#d3dae4" : "#2a3442";
+  const cTile = light ? "#dde3ec" : "#252e3b";
+  const cFg   = light ? "#131820" : "#e6edf5";
+
+  const groups = state.rows.map(r => ({ label: r.label, color: r.color, items: r.items }));
+  if (withPool && state.pool.length)
+    groups.push({ label: "—", color: "#6c7889", items: state.pool });
+
+  // Precarico le immagini: il disegno su canvas deve essere sincrono.
+  const bitmaps = new Map();
+  for (const g of groups) {
+    for (const id of g.items) {
+      const it = state.items[id];
+      if (!it || it.type !== "image") continue;
+      try {
+        const blob = await DB.getBlob(it.blobKey);
+        if (blob) bitmaps.set(id, await createImageBitmap(blob));
+      } catch { /* immagine illeggibile: disegno il fallback */ }
+    }
+  }
+
+  const heights = groups.map(g => {
+    const lines = Math.max(1, Math.ceil(g.items.length / perRow));
+    return Math.max(T, lines * T + (lines - 1) * GAP) + PAD * 2;
+  });
+  const totalH = heights.reduce((a, b) => a + b, 0) + ROWGAP * (groups.length - 1) + 24;
+
+  const cv = document.createElement("canvas");
+  cv.width  = W * S;
+  cv.height = totalH * S;
+  const x = cv.getContext("2d");
+  x.scale(S, S);
+  x.textBaseline = "middle";
+  x.fillStyle = cBg;
+  x.fillRect(0, 0, W, totalH);
+
+  const rr = (px, py, w, h, r) => {
+    x.beginPath();
+    x.moveTo(px + r, py);
+    x.arcTo(px + w, py,     px + w, py + h, r);
+    x.arcTo(px + w, py + h, px,     py + h, r);
+    x.arcTo(px,     py + h, px,     py,     r);
+    x.arcTo(px,     py,     px + w, py,     r);
+    x.closePath();
+  };
+
+  let y = 12;
+  groups.forEach((g, gi) => {
+    const h = heights[gi];
+
+    x.fillStyle = cRow; rr(12, y, W - 24, h, 10); x.fill();
+    x.strokeStyle = cLine; x.lineWidth = 1; x.stroke();
+
+    x.save(); rr(12, y, W - 24, h, 10); x.clip();
+    x.fillStyle = g.color;
+    x.fillRect(12, y, LABW, h);
+    x.restore();
+
+    // etichetta riga
+    x.fillStyle = "#0d0d0d";
+    x.textAlign = "center";
+    x.font = "800 19px system-ui,sans-serif";
+    const ll = wrapText(x, g.label || "", LABW - 12, 3);
+    ll.forEach((ln, i) => x.fillText(ln, 12 + LABW / 2, y + h / 2 + (i - (ll.length - 1) / 2) * 21));
+
+    // tessere
+    let cx = 12 + LABW + PAD, cy = y + PAD, n = 0;
+    for (const id of g.items) {
+      const it = state.items[id];
+      if (!it) continue;
+      if (n && n % perRow === 0) { cx = 12 + LABW + PAD; cy += T + GAP; }
+
+      x.save(); rr(cx, cy, T, T, 6); x.clip();
+      const bm = bitmaps.get(id);
+      if (it.type === "image" && bm) {
+        // object-fit: cover
+        const r = Math.max(T / bm.width, T / bm.height);
+        const dw = bm.width * r, dh = bm.height * r;
+        x.drawImage(bm, cx + (T - dw) / 2, cy + (T - dh) / 2, dw, dh);
+        if (it.label) {
+          x.fillStyle = "rgba(0,0,0,.72)";
+          x.fillRect(cx, cy + T - 15, T, 15);
+          x.fillStyle = "#fff";
+          x.font = "500 9.5px system-ui,sans-serif";
+          let lb = it.label;
+          while (x.measureText(lb).width > T - 6 && lb.length > 1) lb = lb.slice(0, -1);
+          if (lb !== it.label) lb = lb.slice(0, -1) + "…";
+          x.fillText(lb, cx + T / 2, cy + T - 7.5);
+        }
+      } else {
+        x.fillStyle = cTile;
+        x.fillRect(cx, cy, T, T);
+        x.fillStyle = cFg;
+        const txt = it.text || it.label || "";
+        const fs = txt.length > 34 ? 9 : txt.length > 22 ? 10 : txt.length > 14 ? 11 : 12;
+        x.font = `600 ${fs}px system-ui,sans-serif`;
+        const lines = wrapText(x, txt, T - 8, Math.floor((T - 8) / (fs + 2)));
+        lines.forEach((ln, i) =>
+          x.fillText(ln, cx + T / 2, cy + T / 2 + (i - (lines.length - 1) / 2) * (fs + 2)));
+      }
+      x.restore();
+      cx += T + GAP; n++;
+    }
+    y += h + ROWGAP;
+  });
+
+  bitmaps.forEach(b => b.close && b.close());
+
+  cv.toBlob(blob => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (state.name || "tierlist").replace(/[^\w\-À-ÿ ]+/g, "_") + ".png";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast("PNG esportato", "ok");
+  }, "image/png");
+}
+
+/* ========================= EXPORT / IMPORT JSON ========================= */
+const blobToDataURL = b => new Promise(res => {
+  const r = new FileReader();
+  r.onload = () => res(r.result);
+  r.readAsDataURL(b);
+});
+const dataURLToBlob = async u => (await fetch(u)).blob();
+
+async function exportJSON() {
+  const out = JSON.parse(JSON.stringify({
+    v: 1, name: state.name, rows: state.rows, pool: state.pool,
+    items: state.items, settings: state.settings,
+  }));
+  for (const it of Object.values(out.items)) {
+    if (it.type !== "image") continue;
+    const b = await DB.getBlob(it.blobKey);
+    if (b) it.data = await blobToDataURL(b);
+    delete it.blobKey;
+  }
+  const blob = new Blob([JSON.stringify(out)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (state.name || "tierlist").replace(/[^\w\-À-ÿ ]+/g, "_") + ".json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("JSON esportato", "ok");
+}
+
+async function importJSON(file) {
+  try {
+    const d = JSON.parse(await file.text());
+    if (!d.rows || !d.items) throw new Error("formato non valido");
+    const p = blankProject(d.name || "Importata");
+    p.rows = d.rows; p.pool = d.pool || [];
+    p.settings = d.settings || { tile: 96 };
+    p.items = {};
+    for (const [id, it] of Object.entries(d.items)) {
+      if (it.type === "image" && it.data) {
+        const key = "b_" + id;
+        await DB.putBlob(key, await dataURLToBlob(it.data));
+        p.items[id] = { id, type: "image", blobKey: key, label: it.label || "" };
+      } else if (it.type === "image") {
+        continue;                                 // immagine senza dati: scarto
+      } else {
+        p.items[id] = { id, type: "text", text: it.text || "" };
+      }
+    }
+    // Ripulisco i riferimenti a item scartati.
+    const ok = id => !!p.items[id];
+    p.pool = p.pool.filter(ok);
+    p.rows.forEach(r => { r.items = (r.items || []).filter(ok); });
+
+    await DB.putProject(p);
+    projects.push({ id: p.id, name: p.name, updated: p.updated });
+    await loadProject(p.id);
+    toast("Progetto importato", "ok");
+  } catch (e) {
+    toast("Import fallito: " + e.message, "err");
+  }
+}
+
+function exportText() {
+  const lines = [`# ${state.name}`, ""];
+  const nameOf = id => {
+    const it = state.items[id];
+    return it ? (it.type === "text" ? it.text : (it.label || "[immagine]")) : "";
+  };
+  state.rows.forEach(r => {
+    lines.push(`${r.label || "(senza nome)"}: ${r.items.map(nameOf).join(", ")}`);
+  });
+  if (state.pool.length) lines.push("", `Non ordinate: ${state.pool.map(nameOf).join(", ")}`);
+  const txt = lines.join("\n");
+  navigator.clipboard.writeText(txt)
+    .then(() => toast("Copiato negli appunti", "ok"))
+    .catch(() => toast("Copia non riuscita", "err"));
+}
+
+/* ===================== garbage collection blob ===================== */
+async function gcBlobs() {
+  try {
+    const all  = await DB.getAllProjects();
+    const used = new Set();
+    all.forEach(p => Object.values(p.items || {})
+      .forEach(i => { if (i.blobKey) used.add(i.blobKey); }));
+    const keys = await DB.allBlobKeys();
+    for (const k of keys) if (!used.has(k)) await DB.delBlob(k);
+  } catch { /* non critico */ }
+}
+
+/* ========================= PROGETTI ========================= */
+async function loadProject(id) {
+  const all = await DB.getAllProjects();
+  const p = all.find(q => q.id === id);
+  if (!p) return;
+  urlCache.forEach(u => URL.revokeObjectURL(u));
+  urlCache.clear();
+  state = p;
+  if (!state.settings) state.settings = { tile: 96 };
+  sel.clear();
+  undoStack = []; redoStack = []; lastSnap = null;
+  syncUndoButtons();
+  $("#title").value = state.name;
+  $("#tileSize").value = state.settings.tile || 96;
+  await DB.putMeta("last", id);
+  renderAll();
+}
+
+async function newProject(presetKey = "classic") {
+  const p = blankProject("Nuova tier list", presetKey);
+  await DB.putProject(p);
+  projects.push({ id: p.id, name: p.name, updated: p.updated });
+  await loadProject(p.id);
+}
+
+async function duplicateProject() {
+  const copy = JSON.parse(JSON.stringify(state));
+  copy.id = uid();
+  copy.name = state.name + " (copia)";
+  copy.updated = Date.now();
+  // Le immagini vanno clonate: due progetti non possono condividere un blobKey,
+  // altrimenti eliminare l'uno cancella le immagini dell'altro.
+  for (const it of Object.values(copy.items)) {
+    if (it.type !== "image") continue;
+    const b = await DB.getBlob(it.blobKey);
+    if (b) { const k = "b_" + uid(); await DB.putBlob(k, b); it.blobKey = k; }
+  }
+  await DB.putProject(copy);
+  projects.push({ id: copy.id, name: copy.name, updated: copy.updated });
+  await loadProject(copy.id);
+  toast("Duplicata", "ok");
+}
+
+/* ========================= UI WIRING ========================= */
+const openModal  = id => { $(id).hidden = false; };
+const closeModal = id => { $(id).hidden = true; };
+
+$$("[data-close]").forEach(b =>
+  b.onclick = () => b.closest(".overlay").hidden = true);
+$$(".overlay").forEach(o =>
+  o.addEventListener("pointerdown", e => { if (e.target === o) o.hidden = true; }));
+
+/* --- toolbar --- */
+$("#bSide").onclick    = () => $("#sidebar").classList.toggle("collapsed");
+$("#bPoolTog").onclick = () => $("#pool").classList.toggle("collapsed");
+$("#bUndo").onclick    = undo;
+$("#bRedo").onclick    = redo;
+$("#bNew").onclick     = () => newProject();
+$("#bDup").onclick     = duplicateProject;
+
+$("#title").addEventListener("focus", () => { lastSnap = snapshot(); });
+$("#title").addEventListener("input", () => { state.name = $("#title").value; save(); });
+$("#title").addEventListener("blur", () => {
+  if (lastSnap) { undoStack.push(lastSnap); lastSnap = null; syncUndoButtons(); }
+});
+
+$("#tileSize").addEventListener("input", e => {
+  state.settings.tile = +e.target.value;
+  document.documentElement.style.setProperty("--tile", e.target.value + "px");
+  save();
+});
+
+$("#bTheme").onclick = () => {
+  const light = document.documentElement.dataset.theme === "light";
+  if (light) delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = "light";
+  DB.putMeta("theme", light ? "dark" : "light");
+};
+
+$("#bHelp").onclick = () => openModal("#mHelp");
+$("#search").addEventListener("input", renderPool);
+
+$("#bShuffle").onclick = () => {
+  pushUndo();
+  for (let i = state.pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [state.pool[i], state.pool[j]] = [state.pool[j], state.pool[i]];
+  }
+  renderPool(); save();
+};
+
+$("#bResetAll").onclick = () => {
+  const n = state.rows.reduce((a, r) => a + r.items.length, 0);
+  if (!n) { toast("La board è già vuota"); return; }
+  if (!confirm(`Riportare ${n} tessere nel pool?`)) return;
+  pushUndo();
+  state.rows.forEach(r => { state.pool.push(...r.items); r.items = []; });
+  renderAll(); save();
+};
+
+/* --- testo --- */
+$("#bAddText").onclick = () => {
+  $("#txtBulk").value = "";
+  openModal("#mText");
+  setTimeout(() => $("#txtBulk").focus(), 60);
+};
+$("#txtAdd").onclick = () => {
+  const v = $("#txtBulk").value;
+  if (!v.trim()) { toast("Campo vuoto", "err"); return; }
+  if (addTextItems(v)) closeModal("#mText");
+};
+$("#txtBulk").addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("#txtAdd").click();
+});
+
+/* --- immagini --- */
+$("#bAddImg").onclick = () => openModal("#mImg");
+$("#imgDrop").onclick = () => $("#filePick").click();
+$("#filePick").addEventListener("change", async e => {
+  if (e.target.files.length) {
+    await addImageFiles(e.target.files, $("#useNames").checked);
+    closeModal("#mImg");
+  }
+  e.target.value = "";
+});
+
+// Drag&drop di file/cartelle sulla dropzone e su tutta la finestra.
+async function filesFromDataTransfer(dt) {
+  const out = [];
+  if (dt.items && dt.items[0] && dt.items[0].webkitGetAsEntry) {
+    const walk = async entry => {
+      if (entry.isFile) {
+        const f = await new Promise(r => entry.file(r, () => r(null)));
+        if (f) out.push(f);
+      } else if (entry.isDirectory) {
+        const rd = entry.createReader();
+        let batch;
+        do {
+          batch = await new Promise(r => rd.readEntries(r, () => r([])));
+          for (const e of batch) await walk(e);
+        } while (batch.length);
+      }
+    };
+    const entries = [...dt.items]
+      .map(i => i.webkitGetAsEntry && i.webkitGetAsEntry())
+      .filter(Boolean);
+    for (const e of entries) await walk(e);
+  }
+  return out.length ? out : [...dt.files];
+}
+
+const dz = $("#imgDrop");
+["dragenter", "dragover"].forEach(ev =>
+  dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev =>
+  dz.addEventListener(ev, () => dz.classList.remove("over")));
+dz.addEventListener("drop", async e => {
+  e.preventDefault(); e.stopPropagation();
+  const files = await filesFromDataTransfer(e.dataTransfer);
+  if (files.length) { await addImageFiles(files, $("#useNames").checked); closeModal("#mImg"); }
+});
+
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("drop", async e => {
+  e.preventDefault();
+  if (e.target.closest("#imgDrop")) return;
+  const files = await filesFromDataTransfer(e.dataTransfer);
+  const json = files.find(f => f.name.endsWith(".json"));
+  if (json) return importJSON(json);
+  if (files.length) await addImageFiles(files, true);
+});
+
+$("#urlAdd").onclick = async () => {
+  const urls = $("#urlBulk").value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  if (!urls.length) { toast("Nessun URL", "err"); return; }
+  let ok = 0, fail = 0;
+  toast(`Scarico ${urls.length} immagini...`);
+  for (const u of urls) {
+    try {
+      const r = await fetch(u, { mode: "cors" });
+      if (!r.ok) throw 0;
+      const b = await r.blob();
+      if (!b.type.startsWith("image/")) throw 0;
+      const name = decodeURIComponent(u.split("/").pop().split("?")[0]);
+      await addImageFiles([new File([b], name, { type: b.type })], $("#useNames").checked);
+      ok++;
+    } catch { fail++; }
+  }
+  $("#urlBulk").value = "";
+  if (fail) toast(`${ok} scaricate, ${fail} fallite (CORS?)`, fail === urls.length ? "err" : "");
+  if (ok) closeModal("#mImg");
+};
+
+// Incolla immagini dagli appunti.
+window.addEventListener("paste", async e => {
+  if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  const files = [...(e.clipboardData.files || [])];
+  if (files.length) { e.preventDefault(); await addImageFiles(files, true); }
+});
+
+/* --- preset --- */
+function buildPresets() {
+  const rp = $("#rowPresets");
+  rp.innerHTML = "";
+  Object.entries(ROW_PRESETS).forEach(([k, p]) => {
+    const b = document.createElement("button");
+    b.className = "preset";
+    b.innerHTML = `<b>${p.name}</b><small>${p.rows.length} righe</small>
+      <div class="swatches">${p.rows.map(r => `<i style="background:${r[1]}"></i>`).join("")}</div>`;
+    b.onclick = () => {
+      pushUndo();
+      state.rows.forEach(r => state.pool.push(...r.items));
+      state.rows = p.rows.map(([label, color]) => ({ id: uid(), label, color, items: [] }));
+      renderAll(); save();
+      closeModal("#mRows");
+      toast("Righe aggiornate", "ok");
+    };
+    rp.appendChild(b);
+  });
+
+  const dp = $("#dataPresets");
+  dp.innerHTML = "";
+  Object.entries(DATA_PRESETS).forEach(([k, p]) => {
+    const b = document.createElement("button");
+    b.className = "preset";
+    b.innerHTML = `<b>${p.name}</b><small>${p.desc} · ${p.items.length} voci</small>`;
+    b.onclick = () => {
+      const cur = $("#txtBulk").value.trim();
+      $("#txtBulk").value = (cur ? cur + "\n" : "") + p.items.join("\n");
+      $("#txtBulk").focus();
+    };
+    dp.appendChild(b);
+  });
+
+  // "Carica tutte": esclude i set che non sono unità di misura in senso stretto.
+  const NOT_UNITS = new Set(["sport", "economia", "curiose"]);
+  const allUnits = Object.entries(DATA_PRESETS)
+    .filter(([k]) => !NOT_UNITS.has(k))
+    .flatMap(([, p]) => p.items);
+  const uniqUnits = [...new Set(allUnits)];
+  $("#loadAllUnits").querySelector("span").textContent =
+    `Carica TUTTE le unità di misura (${uniqUnits.length})`;
+  $("#loadAllUnits").onclick = () => {
+    $("#txtBulk").value = uniqUnits.join("\n");
+    $("#txtBulk").focus();
+    $("#txtBulk").scrollTop = 0;
+    toast(`${uniqUnits.length} unità pronte: premi Aggiungi`);
+  };
+}
+$("#bRows").onclick = () => openModal("#mRows");
+
+/* --- export --- */
+$("#bExport").onclick = () => openModal("#mExp");
+$("#expPng").onclick = async () => {
+  closeModal("#mExp");
+  toast("Genero il PNG...");
+  try { await exportPNG(+$("#expScale").value, $("#expPool").checked); }
+  catch (e) { toast("Export fallito: " + e.message, "err"); }
+};
+$("#expJson").onclick = () => { closeModal("#mExp"); exportJSON(); };
+$("#expTxt").onclick  = exportText;
+$("#bImportJson").onclick = () => $("#jsonPick").click();
+$("#jsonPick").addEventListener("change", e => {
+  if (e.target.files[0]) importJSON(e.target.files[0]);
+  e.target.value = "";
+});
+
+/* --- drag e selezione --- */
+document.addEventListener("pointerdown", onPointerDown);
+$("#boardWrap").addEventListener("pointerdown", e => {
+  // Clic sul vuoto: deseleziona.
+  if (!e.target.closest(".tile") && !e.target.closest(".row-tools")
+      && e.target.tagName !== "TEXTAREA") {
+    if (sel.size) { sel.clear(); paintSel(); }
+  }
+});
+
+/* --- tastiera --- */
+document.addEventListener("keydown", e => {
+  const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  const openOverlay = $$(".overlay").find(o => !o.hidden);
+
+  if (e.key === "Escape") {
+    if (openOverlay) { openOverlay.hidden = true; return; }
+    if (typing) { document.activeElement.blur(); return; }
+    if (sel.size) { sel.clear(); paintSel(); }
+    return;
+  }
+  if (typing || openOverlay) return;
+
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
+  if (ctrl && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) {
+    e.preventDefault(); redo(); return;
+  }
+  if (ctrl && e.key.toLowerCase() === "a") {
+    e.preventDefault();
+    state.pool.forEach(id => sel.add(id));
+    paintSel();
+    return;
+  }
+  if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelection(); return; }
+  if (/^[0-9]$/.test(e.key)) {
+    const n = +e.key;
+    if (n === 0) sendSelectionTo("pool");
+    else if (state.rows[n - 1]) sendSelectionTo(state.rows[n - 1].id);
+  }
+});
+
+/* ========================= BOOT ========================= */
+(async function boot() {
+  buildPresets();
+  syncUndoButtons();
+
+  try {
+    if (await DB.getMeta("theme") === "light") document.documentElement.dataset.theme = "light";
+  } catch { /* prime visite: nessun tema salvato */ }
+
+  let all = [];
+  try { all = await DB.getAllProjects(); }
+  catch (e) {
+    toast("Archivio non accessibile: i dati non verranno salvati", "err");
+  }
+  projects = all.map(p => ({ id: p.id, name: p.name, updated: p.updated }));
+
+  if (!all.length) {
+    // Primo avvio: progetto d'esempio con le unità SI di base già pronte.
+    const p = blankProject("Unità di misura");
+    ["metro (m)","chilogrammo (kg)","secondo (s)","ampere (A)",
+     "kelvin (K)","mole (mol)","candela (cd)"].forEach(t => {
+      const id = uid();
+      p.items[id] = { id, type: "text", text: t };
+      p.pool.push(id);
+    });
+    await DB.putProject(p);
+    projects = [{ id: p.id, name: p.name, updated: p.updated }];
+    state = p;
+    $("#title").value = state.name;
+    renderAll();
+    toast("Benvenuto! Trascina le tessere nelle righe", "ok");
+  } else {
+    const last = await DB.getMeta("last");
+    await loadProject(all.find(p => p.id === last) ? last : all[0].id);
+  }
+  gcBlobs();
+})();
+</script>
+</body>
+</html>

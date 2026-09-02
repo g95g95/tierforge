@@ -1,0 +1,6 @@
+node_modules/
+*.log
+_c.js
+.DS_Store
+Thumbs.db
+tasks/
