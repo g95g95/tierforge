@@ -67,6 +67,33 @@ una finestra da 720px).
 cambia la struttura: si alterna la classe `.sel` sui nodi esistenti. Ricostruire il DOM
 rilancerebbe una `imageURL()` per ogni tessera immagine. Con 433 tessere: 9ms.
 
+## Mobile (< 760px)
+
+Il layout desktop a 3 colonne (sidebar 210 + board + pool 230) non entra in 375px:
+`#main` collassava a larghezza 0 e l'app era inutilizzabile. Sotto i 760px:
+
+- `#app` passa a **una colonna**; sidebar e pool diventano pannelli `position:fixed`
+  fuori schermo, richiamati da una **tab bar in basso** (Board / Da ordinare / Menu).
+  Chi tocca lo schermo ha il pollice in basso, non in alto.
+- **`#movebar`**, la barra "sposta in": su touch il drag fra board e pool è impossibile
+  (sono due schede distinte), quindi selezionando delle tessere compare una barra con
+  le righe di destinazione. È l'unico modo di ordinare da telefono.
+- Delle 5 icone per riga ne restano 2 (colore, elimina): impilate imponevano ~140px
+  di altezza a **ogni** riga, anche vuota, e in 844px se ne vedevano 3.
+- Il pool diventa una **griglia** `auto-fill` invece del wrap flex.
+
+Trappole verificate sul campo, non teoriche:
+
+- **`grid-auto-rows:min-content` è obbligatorio** sul pool. Con `auto` le tracce si
+  risolvono a 4px (residuo del `gap` del layout flex desktop) e le tessere alte 89px
+  si sovrappongono: il tap colpisce la tessera sbagliata.
+- **`renderAll()` non deve scrivere `--tile` inline su mobile**: uno stile inline batte
+  la media query, quindi le tessere restavano a 96px ignorando i 72/64px previsti.
+- **`100dvh`, non `100vh`**: con `100vh` la barra indirizzi di Safari iOS fa sforare
+  il layout oltre lo schermo.
+- **Input a font ≥ 16px**: sotto quella soglia Safari iOS zooma sulla pagina al focus.
+- `viewport-fit=cover` + `env(safe-area-inset-*)` per notch e home indicator.
+
 **Le immagini sono ridimensionate a 512px** sul lato lungo e ricompresse in WebP
 all'import (`downscale`): tiene il DB leggero e il render fluido.
 
@@ -103,3 +130,9 @@ copre boot, import testo/immagini, drag&drop, undo/redo, persistenza dopo reload
 export PNG/JSON e multi-progetto: 34 asserzioni.
 Se si modifica il layout, ricontrollare che nessun elemento della sidebar/pool
 intercetti i click della toolbar — è stato un bug reale.
+
+Suite mobile separata (viewport 390x844, `isMobile`+`hasTouch`): 22 asserzioni su
+layout, schede, barra "sposta in", selezione multipla, bottom sheet ed export.
+Dopo ogni modifica al CSS mobile va ricontrollato che le tessere del pool **non si
+sovrappongano** (confronto dei bounding box a coppie): è un errore che non si vede
+a occhio in uno screenshot ma rende i tap inaffidabili.

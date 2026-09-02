@@ -2,7 +2,10 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e1116">
 <title>TierForge — Tier List Maker</title>
 <style>
 :root{
@@ -27,6 +30,9 @@ html,body{height:100%}
 body{
   font-family:var(--font); background:var(--bg); color:var(--fg);
   font-size:14px; overflow:hidden; -webkit-font-smoothing:antialiased;
+  /* Safari iOS ingrandisce i font in landscape senza questo. */
+  -webkit-text-size-adjust:100%; text-size-adjust:100%;
+  overscroll-behavior:none;
 }
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:none;background:none}
@@ -38,8 +44,10 @@ button{cursor:pointer;border:none;background:none}
 /* ---------- layout ---------- */
 /* min-height:0 sulle righe: senza, i figli in overflow gonfiano la griglia
    oltre il viewport invece di scrollare internamente. */
+/* 100dvh, non 100vh: su Safari iOS la barra indirizzi che compare/scompare
+   fa sforare il layout oltre lo schermo con 100vh. */
 #app{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:minmax(0,1fr);
-  height:100vh;overflow:hidden}
+  height:100vh;height:100dvh;overflow:hidden}
 #app>*{min-height:0;min-width:0}
 
 /* ---------- sidebar progetti ---------- */
@@ -289,9 +297,175 @@ kbd{
 .shortcuts{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:13px;
   align-items:center}
 .shortcuts span{color:var(--fg2)}
-@media(max-width:900px){
-  #sidebar{position:absolute;z-index:50;height:100%;box-shadow:var(--shadow)}
-  #pool{width:230px}
+/* ================= MOBILE ================= */
+#tabbar,#scrim,#movebar{display:none}
+
+@media(max-width:760px){
+  :root{ --tile:72px; }
+
+  /* Una colonna sola: con 375px non c'è spazio per board e pool affiancati.
+     Sidebar e pool diventano pannelli a scomparsa sopra la board. */
+  #app{grid-template-columns:1fr;position:relative}
+
+  #sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:min(80vw,290px);z-index:60;
+    transform:translateX(-100%);transition:transform .22s ease;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:calc(env(safe-area-inset-bottom) + 4px);
+    box-shadow:var(--shadow);
+  }
+  #sidebar.open{transform:none}
+  #sidebar.collapsed{width:min(80vw,290px);overflow:visible;border-right:1px solid var(--line)}
+
+  #pool{
+    position:fixed;top:0;right:0;bottom:0;width:100%;z-index:55;
+    transform:translateX(100%);transition:transform .22s ease;border-left:none;
+    padding-top:env(safe-area-inset-top);
+  }
+  #pool.open{transform:none}
+  #pool.collapsed{width:100%;overflow:visible;border-left:none}
+  #bPoolTog{display:none}
+
+  #scrim{
+    display:block;position:fixed;inset:0;z-index:54;background:rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:opacity .22s;
+  }
+  #scrim.on{opacity:1;pointer-events:auto}
+
+  /* Toolbar: solo icone, titolo su riga propria sotto. */
+  #main{padding-top:env(safe-area-inset-top)}
+  #toolbar{height:auto;flex-wrap:wrap;padding:6px 8px;gap:4px;row-gap:0}
+  #toolbar .btn{padding:9px;min-width:42px;min-height:42px;justify-content:center}
+  #toolbar .btn .lbl{display:none}
+  #toolbar .sep,#toolbar .zoom,#bSide{display:none}
+  #title{
+    order:-1;width:100%;max-width:none;font-size:16px;padding:7px 8px;
+    text-align:center;border-bottom:1px solid var(--line);border-radius:0;margin-bottom:4px;
+  }
+  #bExport{margin-left:auto}
+
+  /* Spazio in fondo per la tab bar. */
+  #boardWrap{padding:8px 8px calc(64px + env(safe-area-inset-bottom))}
+  #poolItems{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+  .pool-foot{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+
+  /* Le righe vuote devono restare basse: senza max-height la label si allunga
+     e su 844px di schermo se ne vedono solo 3-4. */
+  .row-label{flex-basis:64px;min-height:64px}
+  .row-label textarea{font-size:15px}
+  .row{align-items:stretch}
+  .row-items{min-height:64px;gap:3px;padding:3px}
+  /* I 5 strumenti impilati imponevano ~140px di altezza a ogni riga, anche vuota:
+     su mobile ne restano 2 (colore e elimina), le altre azioni si fanno da desktop.
+     Così una riga vuota torna a 64px e ne stanno 7 in schermata. */
+  .row-tools{flex-basis:30px;gap:2px;justify-content:center}
+  .row-tools .rt-up,.row-tools .rt-dn,.row-tools .rt-add{display:none}
+  .rt{width:28px;height:26px}
+  .rt svg{width:15px;height:15px}
+  .rt input[type=color]{width:16px;height:16px}
+  .row-tools{flex-basis:34px}
+  .rt{width:30px;height:26px}
+  .rt svg{width:15px;height:15px}
+
+  /* Il pool a schermo intero: griglia regolare invece del wrap. */
+  /* grid-auto-rows:min-content è obbligatorio. Con `auto` le tracce si
+     risolvono a 4px (residuo del gap del layout flex desktop) e le tessere,
+     alte 89px, finiscono una sopra l'altra: il tap colpisce quella sbagliata. */
+  #poolItems{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));
+    grid-auto-rows:min-content;gap:6px;align-content:start;
+  }
+  #poolItems .tile{width:100%;height:auto;aspect-ratio:1/1;min-height:0}
+  #poolItems .pool-empty{grid-column:1/-1}
+
+  /* Barra schede in basso: raggiungibile col pollice. */
+  #tabbar{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:70;
+    background:var(--bg2);border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .tabbtn{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;padding:8px 4px;min-height:52px;color:var(--fg3);font-size:11px;font-weight:600;
+    position:relative;
+  }
+  .tabbtn svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round}
+  .tabbtn.active{color:var(--accent)}
+  .tabbtn b{
+    position:absolute;top:4px;left:50%;margin-left:6px;background:var(--accent);color:#fff;
+    font-size:9.5px;border-radius:9px;padding:1px 5px;min-width:17px;text-align:center;
+  }
+  .tabbtn b:empty,.tabbtn b[data-zero="1"]{display:none}
+
+  /* Modali come bottom sheet. */
+  .overlay{padding:0;align-items:flex-end}
+  .modal{
+    max-width:none;border-radius:16px 16px 0 0;max-height:92dvh;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .m-head{padding:14px 16px}
+  .m-body{padding:16px;gap:16px}
+  .m-foot{padding:12px 16px}
+  .m-foot .btn{flex:1;justify-content:center;min-height:46px}
+  .presets{grid-template-columns:1fr}
+  .drop{padding:26px 16px}
+
+  /* Safari zooma sugli input con font < 16px: mai scendere sotto. */
+  .inp,textarea.inp,select.inp,#search,#title{font-size:16px}
+  textarea.inp{min-height:38vh}
+
+  /* Barra "sposta in": sostituisce il drag su touch. */
+  #movebar{
+    display:block;position:fixed;left:0;right:0;z-index:75;
+    bottom:calc(52px + env(safe-area-inset-bottom));
+    background:var(--bg2);border-top:1px solid var(--line2);
+    padding:10px 10px 12px;box-shadow:0 -6px 20px rgba(0,0,0,.35);
+  }
+  #movebar[hidden]{display:none}
+  .mb-head{font-size:12px;color:var(--fg2);margin-bottom:8px}
+  .mb-head b{color:var(--accent)}
+  .mb-rows{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px}
+  .mb-rows button{
+    flex:0 0 auto;min-width:52px;min-height:44px;border-radius:8px;
+    font-weight:800;font-size:15px;color:#0d0d0d;padding:0 12px;
+  }
+  #mbCancel{width:100%;justify-content:center;min-height:42px}
+
+  .toast{font-size:13.5px;padding:11px 18px}
+  #toasts{bottom:calc(70px + env(safe-area-inset-bottom))}
+  .proj{padding:11px 10px;font-size:14.5px}
+  .proj-x{opacity:.5;padding:0 6px;font-size:19px}
+  .side-foot .btn{min-height:46px}
+}
+
+/* Schermi molto stretti (iPhone SE e simili). */
+@media(max-width:380px){
+  :root{ --tile:64px; }
+  #poolItems{grid-template-columns:repeat(auto-fill,minmax(74px,1fr))}
+  .row-label{flex-basis:56px;min-height:56px}
+  .row-label textarea{font-size:14px}
+}
+
+/* Landscape basso: recupero verticale. */
+@media(max-width:900px) and (max-height:480px){
+  #title{display:none}
+  #boardWrap{padding-top:6px}
+}
+
+/* Tablet: due colonne (board + pool), sidebar a scomparsa.
+   La griglia va ridotta a 2 colonne, altrimenti resta la traccia della sidebar
+   e #main collassa a larghezza 0. */
+@media(min-width:761px) and (max-width:1000px){
+  #app{grid-template-columns:1fr auto}
+  #sidebar{position:fixed;top:0;bottom:0;left:0;width:260px;z-index:60;transform:translateX(-100%);
+    transition:transform .22s ease;box-shadow:var(--shadow)}
+  #sidebar.collapsed{width:260px;overflow:visible;border-right:1px solid var(--line)}
+  #sidebar.open{transform:none}
+  #scrim{display:block;position:fixed;inset:0;z-index:54;background:rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:opacity .22s}
+  #scrim.on{opacity:1;pointer-events:auto}
+  #pool{width:250px}
 }
 </style>
 </head>
@@ -388,6 +562,30 @@ kbd{
       </button>
     </div>
   </aside>
+
+  <!-- ============ BARRA SCHEDE (solo mobile) ============ -->
+  <nav id="tabbar">
+    <button class="tabbtn active" data-view="board">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg>
+      <span>Board</span>
+    </button>
+    <button class="tabbtn" data-view="pool">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Da ordinare</span><b id="tabCount">0</b>
+    </button>
+    <button class="tabbtn" data-view="menu">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      <span>Menu</span>
+    </button>
+  </nav>
+  <div id="scrim"></div>
+</div>
+
+<!-- barra "sposta in": alternativa al drag su touch -->
+<div id="movebar" hidden>
+  <div class="mb-head"><b id="mbCount">0</b> selezionate — sposta in:</div>
+  <div class="mb-rows" id="mbRows"></div>
+  <button class="btn ghost" id="mbCancel">Annulla</button>
 </div>
 
 <div id="toasts"></div>
@@ -1097,17 +1295,17 @@ function renderBoard() {
     col.appendChild(ci);
 
     const up = document.createElement("button");
-    up.className = "rt"; up.title = "Sposta su";
+    up.className = "rt rt-up"; up.title = "Sposta su";
     up.innerHTML = svgIco('<path d="m18 15-6-6-6 6"/>');
     up.onclick = () => moveRow(idx, -1);
 
     const dn = document.createElement("button");
-    dn.className = "rt"; dn.title = "Sposta giù";
+    dn.className = "rt rt-dn"; dn.title = "Sposta giù";
     dn.innerHTML = svgIco('<path d="m6 9 6 6 6-6"/>');
     dn.onclick = () => moveRow(idx, 1);
 
     const add = document.createElement("button");
-    add.className = "rt"; add.title = "Aggiungi riga sotto";
+    add.className = "rt rt-add"; add.title = "Aggiungi riga sotto";
     add.innerHTML = svgIco('<path d="M12 5v14M5 12h14"/>');
     add.onclick = () => {
       pushUndo();
@@ -1165,6 +1363,8 @@ function renderPool() {
     ids.forEach(id => { const t = tileEl(id); if (t) c.appendChild(t); });
   }
   $("#poolCount").textContent = state.pool.length;
+  const tc = $("#tabCount");
+  if (tc) { tc.textContent = state.pool.length; tc.dataset.zero = state.pool.length ? "0" : "1"; }
 }
 
 function renderProjects() {
@@ -1199,7 +1399,10 @@ function renderProjects() {
 }
 
 function renderAll() {
-  document.documentElement.style.setProperty("--tile", (state.settings.tile || 96) + "px");
+  // Su mobile lo slider è nascosto: si lascia decidere al CSS (72px, 64px sotto
+  // i 380px). Scrivere qui una variabile inline vincerebbe sulla media query.
+  if (isMobile()) document.documentElement.style.removeProperty("--tile");
+  else document.documentElement.style.setProperty("--tile", (state.settings.tile || 96) + "px");
   renderBoard();
   renderPool();
   renderProjects();
@@ -1209,6 +1412,41 @@ function renderAll() {
 // invece di ricostruire il DOM (e di rilanciare le imageURL() di ogni tessera).
 function paintSel() {
   $$(".tile").forEach(t => t.classList.toggle("sel", sel.has(t.dataset.id)));
+  syncMoveBar();
+}
+
+// Su touch il drag fra board e pool è impossibile (sono due schede diverse):
+// selezionando delle tessere compare una barra con le righe di destinazione.
+function syncMoveBar() {
+  const bar = $("#movebar");
+  if (!bar) return;
+  if (!isMobile() || !sel.size) { bar.hidden = true; return; }
+  $("#mbCount").textContent = sel.size;
+  const rows = $("#mbRows");
+  rows.innerHTML = "";
+  // Sposta, deseleziona e porta l'utente dove sono finite le tessere.
+  const go = (zone, view) => {
+    const n = sel.size;
+    sendSelectionTo(zone);
+    sel.clear();
+    paintSel();
+    showView(view);
+    toast(`${n} spostate`, "ok");
+  };
+  state.rows.forEach(r => {
+    const b = document.createElement("button");
+    b.style.background = r.color;
+    b.textContent = r.label || "—";
+    b.onclick = () => go(r.id, "board");
+    rows.appendChild(b);
+  });
+  const pb = document.createElement("button");
+  pb.style.background = "var(--bg4)";
+  pb.style.color = "var(--fg)";
+  pb.textContent = "↩ Pool";
+  pb.onclick = () => go("pool", "pool");
+  rows.appendChild(pb);
+  bar.hidden = false;
 }
 
 /* ========================= DRAG & DROP =========================
@@ -1703,8 +1941,46 @@ $$("[data-close]").forEach(b =>
 $$(".overlay").forEach(o =>
   o.addEventListener("pointerdown", e => { if (e.target === o) o.hidden = true; }));
 
+/* ===================== MOBILE: schede e pannelli =====================
+   Sotto i 760px board e pool non ci stanno affiancati: diventano due schede
+   e le sidebar sono pannelli a scomparsa sopra la board. */
+const isMobile = () => matchMedia("(max-width:760px)").matches;
+const isTablet = () => matchMedia("(min-width:761px) and (max-width:1000px)").matches;
+
+function closePanels() {
+  $("#sidebar").classList.remove("open");
+  $("#pool").classList.remove("open");
+  $("#scrim").classList.remove("on");
+  $$(".tabbtn").forEach(b => b.classList.toggle("active", b.dataset.view === "board"));
+}
+
+function showView(v) {
+  if (v === "menu")      { $("#sidebar").classList.add("open"); $("#pool").classList.remove("open"); }
+  else if (v === "pool") { $("#pool").classList.add("open");    $("#sidebar").classList.remove("open"); }
+  else                   { $("#sidebar").classList.remove("open"); $("#pool").classList.remove("open"); }
+  $("#scrim").classList.toggle("on", v !== "board");
+  $$(".tabbtn").forEach(b => b.classList.toggle("active", b.dataset.view === v));
+}
+
+$$(".tabbtn").forEach(b => b.onclick = () => {
+  const v = b.dataset.view;
+  // Ri-toccare la scheda attiva la chiude.
+  showView(b.classList.contains("active") && v !== "board" ? "board" : v);
+});
+$("#scrim").onclick = closePanels;
+$("#mbCancel").onclick = () => { sel.clear(); paintSel(); };
+
+// Passando da mobile a desktop (rotazione, resize) i pannelli restano coerenti.
+matchMedia("(max-width:760px)").addEventListener("change", () => {
+  closePanels();
+  syncMoveBar();
+});
+
 /* --- toolbar --- */
-$("#bSide").onclick    = () => $("#sidebar").classList.toggle("collapsed");
+$("#bSide").onclick = () => {
+  if (isMobile() || isTablet()) showView($("#sidebar").classList.contains("open") ? "board" : "menu");
+  else $("#sidebar").classList.toggle("collapsed");
+};
 $("#bPoolTog").onclick = () => $("#pool").classList.toggle("collapsed");
 $("#bUndo").onclick    = undo;
 $("#bRedo").onclick    = redo;

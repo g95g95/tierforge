@@ -17,6 +17,8 @@ Tier list maker in un solo file HTML. Nessuna build, nessuna dipendenza, funzion
 - **Export** PNG fino a 4x, JSON completo (immagini incluse) e testo negli appunti.
 - **Multi-progetto**, undo/redo, ricerca, zoom tessere, tema chiaro/scuro.
 - **Tutto in locale**: i dati restano nel browser (IndexedDB), niente server né account.
+- **Usabile da telefono**: layout a schede, tab bar in basso e barra "sposta in" che
+  sostituisce il drag&drop su touch.
 
 ## Uso
 
@@ -45,6 +47,15 @@ incolla con `Ctrl+V` o scarica da URL.
 Le tessere finiscono nel pannello *Da ordinare*. Da lì trascinale nelle righe, oppure
 selezionale (`Ctrl+clic`, `Shift+clic`, `Ctrl+A`) e premi `1`–`9` per mandarle nella
 riga corrispondente — molto più veloce quando le tessere sono centinaia.
+
+## Da telefono
+
+<img src="docs/mobile.png" width="300" alt="TierForge su iPhone">
+
+Sotto i 760px l'interfaccia diventa a schede: **Board**, **Da ordinare** e **Menu**
+nella barra in basso. Il drag&drop fra board e pool non è possibile su touch (sono due
+schede diverse), quindi si tocca una o più tessere e compare la barra **"sposta in"**
+con tutte le righe di destinazione: un tocco e le tessere ci finiscono.
 
 ## Scorciatoie
 
