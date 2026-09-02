@@ -273,6 +273,10 @@ textarea.inp{resize:vertical;min-height:150px;line-height:1.55}
 .preset:hover{border-color:var(--accent);background:var(--bg3)}
 .preset b{display:block;font-size:13px;margin-bottom:3px}
 .preset small{font-size:11px;color:var(--fg3);line-height:1.4}
+.preset-main{display:block;width:100%;text-align:left}
+.preset-new{display:block;width:100%;margin-top:8px;padding:4px 0;text-align:left;
+  font-size:11px;font-weight:500;color:var(--fg3);border-top:1px solid var(--line)}
+.preset-new:hover{color:var(--accent)}
 .swatches{display:flex;gap:4px;margin-top:7px}
 .swatches i{width:15px;height:15px;border-radius:3px;display:block}
 .row-flex{display:flex;gap:10px;align-items:flex-end}
@@ -1058,11 +1062,35 @@ const DATA_PRESETS = {
             "ROI","ROE","market cap","volume di scambio","lotto","pip",
             "oncia troy d'oro","barile di petrolio","staio di grano","container TEU"],
   },
+  barAscoli: {
+    name: "Bar di Ascoli",
+    desc: "Locali di Ascoli Piceno",
+    items: [
+            "180 Gradi","Al Dolce Caffè","Antico Borgo Bar","Assantachiara - Bar Borgo Chiaro",
+            "Babbo's Bar","Backstage Cafe","Bar Caldaie","Bar Centrale","Bar del Duca",
+            "Bar Diana","Bar e Caffè di D.S.","Bar Evergreen","Bar L'Isola Che Non C'È",
+            "Bar Largo delle Margherite n.2","Bar Latteria Moderna","Bar Lori",
+            "Bar Lungotronto","Bar Marconi","Bar Moka Rica","Bar Musical","Bar Nepi",
+            "Bar Olimpico","Bar Orange","Bar Orange 2.0 Las Vegas","Bar Passarò",
+            "Bar Piceno di Amadio Giuseppe","Bar Sestili","Bar Tabacchi IP Angelini",
+            "Bar-Tabacchi Viale Federici","Baretto dello Stadio","Beer Coyote",
+            "Caffetteria Emozioni","Caffetteria Nonno Angelo","Caffè Dei Sogni","Caffè Invidia",
+            "Caffè Kursaal","Caffè Meletti","Caffè Pasticceria Damiani","Caffè Porta Romana",
+            "Caffè Pretoriano","Caffè Royal","Caffè Saccaria","Campobase - Rifugio Urbano",
+            "Carpe Diem","Chisc Restaurant & Cocktail Bar","Ci vediamo da Simona","Coffee Hour",
+            "Course Coffee (Bar del Corso)","Dirty Miscele Creative","DiVino Wine Bar",
+            "Duomo Caffetteria","Forno Marsico Caffetteria","Fuori Porta","Green Pub",
+            "Guido (bar pasticceria)","Il Posto Giusto","L'Arte Del Caffè","Little Bar",
+            "Lorenz Cafè","Osteria del Popolo","Pasticceria Angelo (caffetteria)","Pub Murphys",
+            "Risto Bar Horus","Ristorante Agorà","Sì con Gusto Bar & Bistrò",
+            "TAMA Caffè Caffetteria","The Cafe Bistro","Tiny Club, Mixtures and Potions",
+            "Vinaccio","Vincè Fa La Carità a Lu Dome"],
+  },
 };
 
 // Set che non contengono unità di misura in senso stretto: esclusi da allUnits(),
 // restano comunque disponibili come preset singoli.
-const NOT_UNITS = new Set(["sport", "economia", "curiose"]);
+const NOT_UNITS = new Set(["sport", "economia", "curiose", "barAscoli"]);
 
 // Tutte le unità di misura, deduplicate. Usata sia dal pulsante "Carica tutte"
 // sia dal seeding al primo avvio.
@@ -1914,6 +1942,29 @@ async function newProject(presetKey = "classic") {
   await loadProject(p.id);
 }
 
+// Costruisce (senza salvarla) una tier list intitolata come un preset dati,
+// col pool già pieno delle sue voci.
+function projectFromPreset(key, presetKey = "classic") {
+  const d = DATA_PRESETS[key];
+  const p = blankProject(d.name, presetKey);
+  [...new Set(d.items)].forEach(t => {
+    const id = uid();
+    p.items[id] = { id, type: "text", text: t };
+    p.pool.push(id);
+  });
+  return p;
+}
+
+// Crea una tier list nuova già popolata con le voci di un preset dati,
+// senza toccare quella aperta.
+async function newProjectFromPreset(key, presetKey = "classic") {
+  const p = projectFromPreset(key, presetKey);
+  await DB.putProject(p);
+  projects.push({ id: p.id, name: p.name, updated: p.updated });
+  await loadProject(p.id);
+  toast(`"${p.name}": ${p.pool.length} tessere pronte`, "ok");
+}
+
 async function duplicateProject() {
   const copy = JSON.parse(JSON.stringify(state));
   copy.id = uid();
@@ -2150,15 +2201,29 @@ function buildPresets() {
   const dp = $("#dataPresets");
   dp.innerHTML = "";
   Object.entries(DATA_PRESETS).forEach(([k, p]) => {
-    const b = document.createElement("button");
-    b.className = "preset";
-    b.innerHTML = `<b>${p.name}</b><small>${p.desc} · ${p.items.length} voci</small>`;
-    b.onclick = () => {
+    const card = document.createElement("div");
+    card.className = "preset";
+
+    const fill = document.createElement("button");
+    fill.className = "preset-main";
+    fill.innerHTML = `<b>${p.name}</b><small>${p.desc} · ${p.items.length} voci</small>`;
+    fill.title = "Aggiungi queste voci alla tier list aperta";
+    fill.onclick = () => {
       const cur = $("#txtBulk").value.trim();
       $("#txtBulk").value = (cur ? cur + "\n" : "") + p.items.join("\n");
       $("#txtBulk").focus();
     };
-    dp.appendChild(b);
+
+    // Scorciatoia: il preset diventa una tier list a sé invece di finire
+    // nel pool di quella aperta.
+    const mk = document.createElement("button");
+    mk.className = "preset-new";
+    mk.textContent = "+ come nuova tier list";
+    mk.title = `Crea una tier list "${p.name}" con queste voci`;
+    mk.onclick = () => { closeModal("#mText"); newProjectFromPreset(k); };
+
+    card.append(fill, mk);
+    dp.appendChild(card);
   });
 
   const uniqUnits = allUnits();
@@ -2232,6 +2297,21 @@ document.addEventListener("keydown", e => {
 });
 
 /* ========================= BOOT ========================= */
+
+// Seed una tantum di un preset come tier list: serve a farla comparire anche
+// negli archivi già esistenti, dove il seeding del primo avvio non scatta più.
+// Il flag in `meta` lo rende irripetibile: chi la elimina non se la ritrova.
+async function seedPreset(key, flag) {
+  try {
+    if (await DB.getMeta(flag)) return null;
+    const p = projectFromPreset(key);
+    await DB.putProject(p);
+    await DB.putMeta(flag, true);
+    projects.push({ id: p.id, name: p.name, updated: p.updated });
+    return p;
+  } catch { return null; }   // archivio non accessibile: si prosegue senza
+}
+
 (async function boot() {
   buildPresets();
   syncUndoButtons();
@@ -2257,13 +2337,20 @@ document.addEventListener("keydown", e => {
     });
     await DB.putProject(p);
     projects = [{ id: p.id, name: p.name, updated: p.updated }];
+    await seedPreset("barAscoli", "seed_barAscoli");
     state = p;
     $("#title").value = state.name;
     renderAll();
     toast(`${p.pool.length} unità di misura pronte da ordinare`, "ok");
   } else {
-    const last = await DB.getMeta("last");
-    await loadProject(all.find(p => p.id === last) ? last : all[0].id);
+    const seeded = await seedPreset("barAscoli", "seed_barAscoli");
+    if (seeded) {
+      await loadProject(seeded.id);
+      toast(`Nuova tier list: "${seeded.name}", ${seeded.pool.length} da ordinare`, "ok");
+    } else {
+      const last = await DB.getMeta("last");
+      await loadProject(all.find(p => p.id === last) ? last : all[0].id);
+    }
   }
   gcBlobs();
 })();
