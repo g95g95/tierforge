@@ -100,6 +100,21 @@ textarea) e il **seeding al primo avvio** — a IndexedDB vuoto il progetto iniz
 "Unità di misura" nasce con tutte le 433 tessere già nel pool. Il seeding scatta solo
 se non esiste alcun progetto: un reload non risemina e "Nuova tier list" resta vuota.
 
+## Seeding
+
+Due meccanismi distinti, da non confondere.
+
+**Primo avvio** — a IndexedDB vuoto nasce "Unità di misura" col pool pieno. Scatta solo
+se non esiste alcun progetto: un reload non risemina e "Nuova tier list" resta vuota.
+
+**`seedPreset(key, flag)`** — crea un preset come tier list anche negli archivi già
+esistenti, dove il primo avvio non scatta più (è così che "Bar di Ascoli" è comparsa
+a chi usava già l'app). Il flag in `meta` la rende irripetibile: chi elimina la lista
+non se la ritrova al reload. Con l'archivio vuoto la lista si aggiunge accanto a
+"Unità di misura", che resta quella aperta; con un archivio già popolato la lista
+appena creata viene aperta al posto di `last`, una volta sola.
+Un archivio non accessibile non è un errore: il seed torna `null` e il boot prosegue.
+
 ## Test
 
 Non c'è un runner installato nel progetto. La suite end-to-end usata in sviluppo
