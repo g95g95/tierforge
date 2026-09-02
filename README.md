@@ -10,7 +10,7 @@ Tier list maker in un solo file HTML. Nessuna build, nessuna dipendenza, funzion
 
 - **Tessere di testo o immagine.** Incolli un elenco (una voce per riga) e diventa
   una tessera per riga; oppure trascini immagini, anche cartelle intere.
-- **433 unità di misura già caricate al primo avvio** — SI, derivate, imperiali,
+- **433 unità di misura e i 70 bar di Ascoli già caricati al primo avvio** — SI, derivate, imperiali,
   prefissi, storiche, nautiche e altro: apri e inizi a ordinare, zero setup.
 - **27 preset di dati** (unità di misura, informatica, sport, bar di Ascoli…)
   e 6 strutture di righe (S–F, giudizio, voti 1–10…): ogni preset si accoda alla

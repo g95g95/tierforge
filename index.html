@@ -1704,9 +1704,9 @@ async function newProject(presetKey = "classic") {
   await loadProject(p.id);
 }
 
-// Crea una tier list nuova già popolata con le voci di un preset dati,
-// senza toccare quella aperta.
-async function newProjectFromPreset(key, presetKey = "classic") {
+// Costruisce (senza salvarla) una tier list intitolata come un preset dati,
+// col pool già pieno delle sue voci.
+function projectFromPreset(key, presetKey = "classic") {
   const d = DATA_PRESETS[key];
   const p = blankProject(d.name, presetKey);
   [...new Set(d.items)].forEach(t => {
@@ -1714,10 +1714,17 @@ async function newProjectFromPreset(key, presetKey = "classic") {
     p.items[id] = { id, type: "text", text: t };
     p.pool.push(id);
   });
+  return p;
+}
+
+// Crea una tier list nuova già popolata con le voci di un preset dati,
+// senza toccare quella aperta.
+async function newProjectFromPreset(key, presetKey = "classic") {
+  const p = projectFromPreset(key, presetKey);
   await DB.putProject(p);
   projects.push({ id: p.id, name: p.name, updated: p.updated });
   await loadProject(p.id);
-  toast(`"${d.name}": ${p.pool.length} tessere pronte`, "ok");
+  toast(`"${p.name}": ${p.pool.length} tessere pronte`, "ok");
 }
 
 async function duplicateProject() {
@@ -2014,6 +2021,21 @@ document.addEventListener("keydown", e => {
 });
 
 /* ========================= BOOT ========================= */
+
+// Seed una tantum di un preset come tier list: serve a farla comparire anche
+// negli archivi già esistenti, dove il seeding del primo avvio non scatta più.
+// Il flag in `meta` lo rende irripetibile: chi la elimina non se la ritrova.
+async function seedPreset(key, flag) {
+  try {
+    if (await DB.getMeta(flag)) return null;
+    const p = projectFromPreset(key);
+    await DB.putProject(p);
+    await DB.putMeta(flag, true);
+    projects.push({ id: p.id, name: p.name, updated: p.updated });
+    return p;
+  } catch { return null; }   // archivio non accessibile: si prosegue senza
+}
+
 (async function boot() {
   buildPresets();
   syncUndoButtons();
@@ -2039,13 +2061,20 @@ document.addEventListener("keydown", e => {
     });
     await DB.putProject(p);
     projects = [{ id: p.id, name: p.name, updated: p.updated }];
+    await seedPreset("barAscoli", "seed_barAscoli");
     state = p;
     $("#title").value = state.name;
     renderAll();
     toast(`${p.pool.length} unità di misura pronte da ordinare`, "ok");
   } else {
-    const last = await DB.getMeta("last");
-    await loadProject(all.find(p => p.id === last) ? last : all[0].id);
+    const seeded = await seedPreset("barAscoli", "seed_barAscoli");
+    if (seeded) {
+      await loadProject(seeded.id);
+      toast(`Nuova tier list: "${seeded.name}", ${seeded.pool.length} da ordinare`, "ok");
+    } else {
+      const last = await DB.getMeta("last");
+      await loadProject(all.find(p => p.id === last) ? last : all[0].id);
+    }
   }
   gcBlobs();
 })();
