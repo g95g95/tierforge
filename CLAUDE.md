@@ -80,7 +80,7 @@ e si spinge sullo stack al `blur`, così l'intera digitazione è un solo undo.
 ## Preset
 
 `ROW_PRESETS` — 6 strutture di righe (S–F, giudizio, voti…).
-`DATA_PRESETS` — 27 set di tessere pronti (629 voci, 555 uniche): SI base/derivate/composte,
+`DATA_PRESETS` — 27 set di tessere pronti (636 voci, 562 uniche): SI base/derivate/composte,
 prefissi decimali e binari, lunghezza, massa, tempo, superficie, volume, velocità, energia,
 pressione, temperatura, angoli, elettromagnetismo, luce, chimica, nautica, cucina, storiche,
 curiose, informatica, sport, economia, bar di Ascoli.
