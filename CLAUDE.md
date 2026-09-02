@@ -86,10 +86,14 @@ pressione, temperatura, angoli, elettromagnetismo, luce, chimica, nautica, cucin
 curiose, informatica, sport, economia.
 Aggiungerne uno = una voce nell'oggetto, la UI si costruisce da sola in `buildPresets()`.
 
-Il pulsante **Carica TUTTE le unità di misura** (433 voci) unisce tutti i set tranne
-quelli in `NOT_UNITS` (`sport`, `economia`, `curiose`), deduplica e riempie la textarea.
-Aggiungendo un preset che non contiene unità di misura vere, va inserito in `NOT_UNITS`.
-Il conteggio nell'etichetta si calcola da solo.
+`allUnits()` unisce tutti i set tranne quelli in `NOT_UNITS` (`sport`, `economia`,
+`curiose`) e deduplica: 433 voci. Aggiungendo un preset che non contiene unità di
+misura vere, va inserito in `NOT_UNITS`; tutti i conteggi si ricalcolano da soli.
+
+È usata in due punti: il pulsante **Carica TUTTE le unità di misura** (riempie la
+textarea) e il **seeding al primo avvio** — a IndexedDB vuoto il progetto iniziale
+"Unità di misura" nasce con tutte le 433 tessere già nel pool. Il seeding scatta solo
+se non esiste alcun progetto: un reload non risemina e "Nuova tier list" resta vuota.
 
 ## Test
 

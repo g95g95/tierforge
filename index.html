@@ -862,6 +862,18 @@ const DATA_PRESETS = {
   },
 };
 
+// Set che non contengono unità di misura in senso stretto: esclusi da allUnits(),
+// restano comunque disponibili come preset singoli.
+const NOT_UNITS = new Set(["sport", "economia", "curiose"]);
+
+// Tutte le unità di misura, deduplicate. Usata sia dal pulsante "Carica tutte"
+// sia dal seeding al primo avvio.
+const allUnits = () => [...new Set(
+  Object.entries(DATA_PRESETS)
+    .filter(([k]) => !NOT_UNITS.has(k))
+    .flatMap(([, p]) => p.items)
+)];
+
 /* ============================== STATO ============================== */
 let state    = null;   // progetto corrente
 let projects = [];     // metadati di tutti i progetti
@@ -1873,12 +1885,7 @@ function buildPresets() {
     dp.appendChild(b);
   });
 
-  // "Carica tutte": esclude i set che non sono unità di misura in senso stretto.
-  const NOT_UNITS = new Set(["sport", "economia", "curiose"]);
-  const allUnits = Object.entries(DATA_PRESETS)
-    .filter(([k]) => !NOT_UNITS.has(k))
-    .flatMap(([, p]) => p.items);
-  const uniqUnits = [...new Set(allUnits)];
+  const uniqUnits = allUnits();
   $("#loadAllUnits").querySelector("span").textContent =
     `Carica TUTTE le unità di misura (${uniqUnits.length})`;
   $("#loadAllUnits").onclick = () => {
@@ -1965,10 +1972,9 @@ document.addEventListener("keydown", e => {
   projects = all.map(p => ({ id: p.id, name: p.name, updated: p.updated }));
 
   if (!all.length) {
-    // Primo avvio: progetto d'esempio con le unità SI di base già pronte.
+    // Primo avvio: tutte le unità di misura già caricate nel pool.
     const p = blankProject("Unità di misura");
-    ["metro (m)","chilogrammo (kg)","secondo (s)","ampere (A)",
-     "kelvin (K)","mole (mol)","candela (cd)"].forEach(t => {
+    allUnits().forEach(t => {
       const id = uid();
       p.items[id] = { id, type: "text", text: t };
       p.pool.push(id);
@@ -1978,7 +1984,7 @@ document.addEventListener("keydown", e => {
     state = p;
     $("#title").value = state.name;
     renderAll();
-    toast("Benvenuto! Trascina le tessere nelle righe", "ok");
+    toast(`${p.pool.length} unità di misura pronte da ordinare`, "ok");
   } else {
     const last = await DB.getMeta("last");
     await loadProject(all.find(p => p.id === last) ? last : all[0].id);

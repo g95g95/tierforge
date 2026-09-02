@@ -10,8 +10,8 @@ Tier list maker in un solo file HTML. Nessuna build, nessuna dipendenza, funzion
 
 - **Tessere di testo o immagine.** Incolli un elenco (una voce per riga) e diventa
   una tessera per riga; oppure trascini immagini, anche cartelle intere.
-- **433 unità di misura precaricate** — un clic su *Carica TUTTE le unità di misura*
-  e hai SI, derivate, imperiali, prefissi, storiche, nautiche e altro pronte da ordinare.
+- **433 unità di misura già caricate al primo avvio** — SI, derivate, imperiali,
+  prefissi, storiche, nautiche e altro: apri e inizi a ordinare, zero setup.
 - **26 preset di dati** e 6 strutture di righe (S–F, giudizio, voti 1–10…).
 - **Drag & drop** con segnaposto di inserimento, multi-selezione, supporto touch.
 - **Export** PNG fino a 4x, JSON completo (immagini incluse) e testo negli appunti.
@@ -32,9 +32,12 @@ start index.html      # Windows   (macOS: open, Linux: xdg-open)
 
 ## Come si aggiungono gli elementi
 
-**Testo** → scrivi o incolla nella textarea, una voce per riga (righe vuote e duplicati
-vengono scartati). In alternativa clicca uno dei preset: le voci si accodano nella
-textarea, così puoi combinarne più di uno prima di confermare.
+Al primo avvio le 433 unità di misura sono già nel pool, pronte da trascinare.
+
+Per aggiungerne altre: **Testo** → scrivi o incolla nella textarea, una voce per riga
+(righe vuote e duplicati vengono scartati). In alternativa clicca uno dei preset: le voci
+si accodano nella textarea, così puoi combinarne più di uno prima di confermare.
+Il pulsante *Carica TUTTE le unità di misura* le rimette tutte in un colpo.
 
 **Immagini** → trascina file o cartelle nella dropzone, usa il file picker,
 incolla con `Ctrl+V` o scarica da URL.
