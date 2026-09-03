@@ -1086,11 +1086,42 @@ const DATA_PRESETS = {
             "TAMA Caffè Caffetteria","The Cafe Bistro","Tiny Club, Mixtures and Potions",
             "Vinaccio","Vincè Fa La Carità a Lu Dome"],
   },
+  medicina: {
+    name: "Specializzazioni mediche",
+    desc: "Tutte le scuole di specializzazione italiane",
+    items: [
+            // Area medica — classe della medicina clinica generale e specialistica
+            "Allergologia e immunologia clinica","Dermatologia e venereologia","Ematologia",
+            "Endocrinologia e malattie del metabolismo","Malattie dell'apparato digerente (Gastroenterologia)",
+            "Geriatria","Malattie dell'apparato cardiovascolare (Cardiologia)",
+            "Malattie dell'apparato respiratorio (Pneumologia)","Malattie infettive e tropicali",
+            "Medicina d'emergenza-urgenza","Medicina dello sport e dell'esercizio fisico",
+            "Medicina di comunità e delle cure primarie","Medicina interna","Medicina termale",
+            "Nefrologia","Oncologia medica","Reumatologia","Scienza dell'alimentazione",
+            // Area medica — classe delle neuroscienze e scienze cliniche del comportamento
+            "Neurologia","Neuropsichiatria infantile","Neuroradiologia","Psichiatria",
+            // Area medica — classe della medicina clinica dell'età evolutiva
+            "Pediatria",
+            // Area chirurgica — classe delle chirurgie generali e specialistiche
+            "Chirurgia generale","Chirurgia pediatrica","Chirurgia plastica, ricostruttiva ed estetica",
+            "Ginecologia e ostetricia","Ortopedia e traumatologia","Urologia",
+            // Area chirurgica — classe delle chirurgie del distretto testa-collo
+            "Chirurgia maxillo-facciale","Neurochirurgia","Oftalmologia","Otorinolaringoiatria",
+            // Area chirurgica — classe delle chirurgie cardio-toraco-vascolari
+            "Cardiochirurgia","Chirurgia toracica","Chirurgia vascolare",
+            // Area dei servizi clinici
+            "Anatomia patologica","Microbiologia e virologia","Patologia clinica e biochimica clinica",
+            "Radiodiagnostica","Radioterapia","Medicina nucleare",
+            "Anestesia, rianimazione, terapia intensiva e del dolore","Medicina fisica e riabilitativa",
+            "Genetica medica","Farmacologia e tossicologia clinica","Igiene e medicina preventiva",
+            "Medicina legale","Medicina del lavoro","Medicina e cure palliative",
+            "Statistica sanitaria e biometria"],
+  },
 };
 
 // Set che non contengono unità di misura in senso stretto: esclusi da allUnits(),
 // restano comunque disponibili come preset singoli.
-const NOT_UNITS = new Set(["sport", "economia", "curiose", "barAscoli"]);
+const NOT_UNITS = new Set(["sport", "economia", "curiose", "barAscoli", "medicina"]);
 
 // Tutte le unità di misura, deduplicate. Usata sia dal pulsante "Carica tutte"
 // sia dal seeding al primo avvio.
@@ -2338,12 +2369,14 @@ async function seedPreset(key, flag) {
     await DB.putProject(p);
     projects = [{ id: p.id, name: p.name, updated: p.updated }];
     await seedPreset("barAscoli", "seed_barAscoli");
+    await seedPreset("medicina", "seed_medicina");
     state = p;
     $("#title").value = state.name;
     renderAll();
     toast(`${p.pool.length} unità di misura pronte da ordinare`, "ok");
   } else {
-    const seeded = await seedPreset("barAscoli", "seed_barAscoli");
+    const seededAscoli = await seedPreset("barAscoli", "seed_barAscoli");
+    const seeded = (await seedPreset("medicina", "seed_medicina")) || seededAscoli;
     if (seeded) {
       await loadProject(seeded.id);
       toast(`Nuova tier list: "${seeded.name}", ${seeded.pool.length} da ordinare`, "ok");
