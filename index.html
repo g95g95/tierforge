@@ -1117,11 +1117,20 @@ const DATA_PRESETS = {
             "Medicina legale","Medicina del lavoro","Medicina e cure palliative",
             "Statistica sanitaria e biometria"],
   },
+  partiti: {
+    name: "Partiti politici italiani",
+    desc: "I partiti nei sondaggi nazionali",
+    items: [
+            "Fratelli d'Italia","Partito Democratico","Movimento 5 Stelle","Futuro Nazionale",
+            "Forza Italia","Alleanza Verdi e Sinistra","Lega","Azione","Italia Viva",
+            "Più Europa","Noi Moderati","Partito Liberaldemocratico","Sud chiama Nord",
+            "Ora!","Democrazia Sovrana e Popolare","Italia del Domani"],
+  },
 };
 
 // Set che non contengono unità di misura in senso stretto: esclusi da allUnits(),
 // restano comunque disponibili come preset singoli.
-const NOT_UNITS = new Set(["sport", "economia", "curiose", "barAscoli", "medicina"]);
+const NOT_UNITS = new Set(["sport", "economia", "curiose", "barAscoli", "medicina", "partiti"]);
 
 // Tutte le unità di misura, deduplicate. Usata sia dal pulsante "Carica tutte"
 // sia dal seeding al primo avvio.
@@ -2370,13 +2379,15 @@ async function seedPreset(key, flag) {
     projects = [{ id: p.id, name: p.name, updated: p.updated }];
     await seedPreset("barAscoli", "seed_barAscoli");
     await seedPreset("medicina", "seed_medicina");
+    await seedPreset("partiti", "seed_partiti");
     state = p;
     $("#title").value = state.name;
     renderAll();
     toast(`${p.pool.length} unità di misura pronte da ordinare`, "ok");
   } else {
     const seededAscoli = await seedPreset("barAscoli", "seed_barAscoli");
-    const seeded = (await seedPreset("medicina", "seed_medicina")) || seededAscoli;
+    const seededMed = (await seedPreset("medicina", "seed_medicina")) || seededAscoli;
+    const seeded = (await seedPreset("partiti", "seed_partiti")) || seededMed;
     if (seeded) {
       await loadProject(seeded.id);
       toast(`Nuova tier list: "${seeded.name}", ${seeded.pool.length} da ordinare`, "ok");

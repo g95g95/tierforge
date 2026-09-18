@@ -107,11 +107,12 @@ e si spinge sullo stack al `blur`, così l'intera digitazione è un solo undo.
 ## Preset
 
 `ROW_PRESETS` — 6 strutture di righe (S–F, giudizio, voti…).
-`DATA_PRESETS` — 28 set di tessere pronti (687 voci, 613 uniche): SI base/derivate/composte,
+`DATA_PRESETS` — 29 set di tessere pronti (703 voci, 629 uniche): SI base/derivate/composte,
 prefissi decimali e binari, lunghezza, massa, tempo, superficie, volume, velocità, energia,
 pressione, temperatura, angoli, elettromagnetismo, luce, chimica, nautica, cucina, storiche,
 curiose, informatica, sport, economia, bar di Ascoli, specializzazioni mediche (le 51 scuole
-di specializzazione italiane, area medica/chirurgica/servizi clinici).
+di specializzazione italiane, area medica/chirurgica/servizi clinici), partiti politici
+italiani (i 13 dei sondaggi nazionali più Ora!, DSP e Italia del Domani).
 Aggiungerne uno = una voce nell'oggetto, la UI si costruisce da sola in `buildPresets()`.
 
 Ogni card di `#dataPresets` ha due azioni: il corpo accoda le voci alla textarea
@@ -120,7 +121,7 @@ Ogni card di `#dataPresets` ha due azioni: il corpo accoda le voci alla textarea
 e col pool già pieno — la lista aperta non viene toccata.
 
 `allUnits()` unisce tutti i set tranne quelli in `NOT_UNITS` (`sport`, `economia`,
-`curiose`, `barAscoli`, `medicina`) e deduplica: 433 voci. Aggiungendo un preset che non
+`curiose`, `barAscoli`, `medicina`, `partiti`) e deduplica: 433 voci. Aggiungendo un preset che non
 contiene unità di misura vere, va inserito in `NOT_UNITS`; tutti i conteggi si ricalcolano
 da soli.
 
@@ -137,8 +138,9 @@ Due meccanismi distinti, da non confondere.
 se non esiste alcun progetto: un reload non risemina e "Nuova tier list" resta vuota.
 
 **`seedPreset(key, flag)`** — crea un preset come tier list anche negli archivi già
-esistenti, dove il primo avvio non scatta più (è così che "Bar di Ascoli" e
-"Specializzazioni mediche" sono comparse a chi usava già l'app). Il flag in `meta` la
+esistenti, dove il primo avvio non scatta più (è così che "Bar di Ascoli",
+"Specializzazioni mediche" e "Partiti politici italiani" sono comparse a chi usava già
+l'app). Il flag in `meta` la
 rende irripetibile: chi elimina la lista non se la ritrova al reload. Con l'archivio
 vuoto la lista si aggiunge accanto a "Unità di misura", che resta quella aperta; con un
 archivio già popolato la lista appena creata viene aperta al posto di `last`, una volta
