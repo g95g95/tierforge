@@ -112,13 +112,35 @@ prefissi decimali e binari, lunghezza, massa, tempo, superficie, volume, velocit
 pressione, temperatura, angoli, elettromagnetismo, luce, chimica, nautica, cucina, storiche,
 curiose, informatica, sport, economia, bar di Ascoli, specializzazioni mediche (le 51 scuole
 di specializzazione italiane, area medica/chirurgica/servizi clinici), partiti politici
-italiani (i 13 dei sondaggi nazionali più Ora!, DSP e Italia del Domani).
+italiani (i 13 dei sondaggi nazionali più Ora!, DSP e Italia del Domani, con i simboli
+opzionali).
 Aggiungerne uno = una voce nell'oggetto, la UI si costruisce da sola in `buildPresets()`.
 
 Ogni card di `#dataPresets` ha due azioni: il corpo accoda le voci alla textarea
 (si combinano più preset prima di confermare), il link in fondo chiama
 `newProjectFromPreset()` e crea invece una tier list a sé, intitolata come il preset
 e col pool già pieno — la lista aperta non viene toccata.
+
+Un preset può dichiarare **`emblems`**: una mappa `voce → [sfondo, testo, sigla]` che
+aggiunge alla card una terza azione, "coi simboli". `projectFromPreset(key, rows, true)`
+passa allora da tessere testo a tessere immagine e intitola la lista `<nome> (simboli)`.
+Ce l'ha finora solo `partiti`. Le voci senza emblema in un preset misto restano testo,
+e se il canvas o l'archivio falliscono la singola tessera ricade su testo invece di
+far saltare l'intera creazione.
+
+**`emblemBlob(bg, fg, sigla)`** disegna il simbolo su canvas — disco, anello bianco,
+sigla rimpicciolita finché entra — e lo rasterizza in WebP. Da lì in poi è una tessera
+immagine come quelle importate: stesso store `blobs`, stesso `imageURL()`, stesso export
+PNG, stessa clonazione in `duplicateProject()`. Niente SVG (il rendering dei font dentro
+`<img>` non è affidabile) e niente file esterni, così l'app resta offline e senza
+dipendenze. Il disco è alzato al 45% dell'altezza: gli ultimi ~14% della tessera li
+copre la didascalia `.cap` col nome del partito, che altrimenti taglierebbe la sigla.
+**Non sono i contrassegni ufficiali depositati**, sono dischi in stile scheda elettorale
+coi colori del partito.
+
+Il blob va scritto **prima** del progetto che lo referenzia: `gcBlobs()` spazza i blob
+che nessun progetto cita, quindi `projectFromPreset()` è `async` e i suoi due chiamanti
+(`newProjectFromPreset`, `seedPreset`) salvano il progetto subito dopo.
 
 `allUnits()` unisce tutti i set tranne quelli in `NOT_UNITS` (`sport`, `economia`,
 `curiose`, `barAscoli`, `medicina`, `partiti`) e deduplica: 433 voci. Aggiungendo un preset che non
@@ -137,15 +159,16 @@ Due meccanismi distinti, da non confondere.
 **Primo avvio** — a IndexedDB vuoto nasce "Unità di misura" col pool pieno. Scatta solo
 se non esiste alcun progetto: un reload non risemina e "Nuova tier list" resta vuota.
 
-**`seedPreset(key, flag)`** — crea un preset come tier list anche negli archivi già
-esistenti, dove il primo avvio non scatta più (è così che "Bar di Ascoli",
-"Specializzazioni mediche" e "Partiti politici italiani" sono comparse a chi usava già
-l'app). Il flag in `meta` la
+**`seedPreset(key, flag, emblems)`** — crea un preset come tier list anche negli archivi
+già esistenti, dove il primo avvio non scatta più (è così che "Bar di Ascoli",
+"Specializzazioni mediche" e le due liste dei partiti sono comparse a chi usava già
+l'app). L'elenco sta nella tabella `SEEDS`, che `seedAll()` percorre in ordine:
+aggiungerne uno = una riga. Il flag in `meta` la
 rende irripetibile: chi elimina la lista non se la ritrova al reload. Con l'archivio
 vuoto la lista si aggiunge accanto a "Unità di misura", che resta quella aperta; con un
 archivio già popolato la lista appena creata viene aperta al posto di `last`, una volta
-sola — il boot chiama `seedPreset` in sequenza per ogni preset e apre l'ultimo che
-effettivamente semina (se più preset scattano nello stesso boot, gli altri restano
+sola — `seedAll()` chiama `seedPreset` in sequenza per ogni riga e restituisce l'ultimo
+che ha effettivamente seminato, che il boot apre (se più preset scattano nello stesso boot, gli altri restano
 comunque creati, solo non aperti).
 Un archivio non accessibile non è un errore: il seed torna `null` e il boot prosegue.
 

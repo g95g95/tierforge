@@ -1125,6 +1125,27 @@ const DATA_PRESETS = {
             "Forza Italia","Alleanza Verdi e Sinistra","Lega","Azione","Italia Viva",
             "Più Europa","Noi Moderati","Partito Liberaldemocratico","Sud chiama Nord",
             "Ora!","Democrazia Sovrana e Popolare","Italia del Domani"],
+    // Simboli disegnati a runtime: [sfondo, testo, sigla]. Non sono i contrassegni
+    // ufficiali depositati al Viminale: sono dischi in stile scheda elettorale coi
+    // colori del partito, per non dipendere da file esterni.
+    emblems: {
+      "Fratelli d'Italia":            ["#1c2f4a", "#ffffff", "FdI"],
+      "Partito Democratico":          ["#e2261c", "#ffffff", "PD"],
+      "Movimento 5 Stelle":           ["#f2d411", "#2b2b2b", "M5S"],
+      "Futuro Nazionale":             ["#0f4c6b", "#ffffff", "FN"],
+      "Forza Italia":                 ["#1e7fd4", "#ffffff", "FI"],
+      "Alleanza Verdi e Sinistra":    ["#3aa757", "#ffffff", "AVS"],
+      "Lega":                         ["#0e7c86", "#ffffff", "Lega"],
+      "Azione":                       ["#1b3f8f", "#ffffff", "Azione"],
+      "Italia Viva":                  ["#d6215f", "#ffffff", "IV"],
+      "Più Europa":                   ["#ffd200", "#1b3f8f", "+E"],
+      "Noi Moderati":                 ["#1876c4", "#ffffff", "NM"],
+      "Partito Liberaldemocratico":   ["#2e5fa3", "#ffffff", "PLD"],
+      "Sud chiama Nord":              ["#f08a1c", "#ffffff", "ScN"],
+      "Ora!":                         ["#b5121b", "#ffffff", "Ora!"],
+      "Democrazia Sovrana e Popolare":["#c0272d", "#ffffff", "DSP"],
+      "Italia del Domani":            ["#2b74b8", "#ffffff", "IdD"],
+    },
   },
 };
 
@@ -1243,6 +1264,38 @@ function downscale(file, max = 512) {
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("immagine non valida")); };
     img.src = url;
   });
+}
+
+// Simbolo elettorale disegnato a mano su canvas e rasterizzato in WebP: da lì in poi
+// è una tessera immagine come le altre (stesso store `blobs`, stesso export PNG).
+// Niente SVG e niente file esterni, così l'app resta a dipendenza zero e offline.
+const EMBLEM_FONT = 'system-ui,-apple-system,"Segoe UI",sans-serif';
+function emblemBlob(bg, fg, abbr, size = 256) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  // Disco alzato rispetto al centro: gli ultimi ~14% della tessera li copre la
+  // didascalia col nome del partito (`.cap`), che altrimenti taglierebbe la sigla.
+  const cx = size / 2, cy = size * 0.45, r = size * 0.4;
+  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fillStyle = bg; g.fill();
+  g.lineWidth = size * 0.022; g.strokeStyle = "#fff"; g.stroke();
+  g.beginPath(); g.arc(cx, cy, r + size * 0.022, 0, Math.PI * 2);
+  g.lineWidth = size * 0.012; g.strokeStyle = "rgba(0,0,0,.22)"; g.stroke();
+
+  // Sigla rimpicciolita finché non entra nel disco.
+  let fs = size * 0.34;
+  const max = r * 1.5;
+  g.font = `800 ${fs}px ${EMBLEM_FONT}`;
+  while (g.measureText(abbr).width > max && fs > 12) {
+    fs -= 2;
+    g.font = `800 ${fs}px ${EMBLEM_FONT}`;
+  }
+  g.fillStyle = fg; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(abbr, cx, cy);
+
+  return new Promise((res, rej) =>
+    c.toBlob(b => b ? res(b) : rej(new Error("canvas non disponibile")), "image/webp", 0.92));
 }
 
 async function addImageFiles(files, useNames = true) {
@@ -1983,22 +2036,35 @@ async function newProject(presetKey = "classic") {
 }
 
 // Costruisce (senza salvarla) una tier list intitolata come un preset dati,
-// col pool già pieno delle sue voci.
-function projectFromPreset(key, presetKey = "classic") {
+// col pool già pieno delle sue voci. Con `emblems` le voci che hanno un simbolo
+// diventano tessere immagine: il blob va scritto qui, prima del progetto, perché
+// `gcBlobs()` spazza i blob che nessun progetto referenzia.
+async function projectFromPreset(key, presetKey = "classic", emblems = false) {
   const d = DATA_PRESETS[key];
-  const p = blankProject(d.name, presetKey);
-  [...new Set(d.items)].forEach(t => {
+  const withEmblems = emblems && d.emblems;
+  const p = blankProject(withEmblems ? `${d.name} (simboli)` : d.name, presetKey);
+  for (const t of [...new Set(d.items)]) {
     const id = uid();
-    p.items[id] = { id, type: "text", text: t };
+    const em = withEmblems && d.emblems[t];
+    let made = false;
+    if (em) {
+      try {
+        const bk = "b_" + id;
+        await DB.putBlob(bk, await emblemBlob(...em));
+        p.items[id] = { id, type: "image", blobKey: bk, label: t };
+        made = true;
+      } catch { /* canvas o archivio ko: la voce resta testo */ }
+    }
+    if (!made) p.items[id] = { id, type: "text", text: t };
     p.pool.push(id);
-  });
+  }
   return p;
 }
 
 // Crea una tier list nuova già popolata con le voci di un preset dati,
 // senza toccare quella aperta.
-async function newProjectFromPreset(key, presetKey = "classic") {
-  const p = projectFromPreset(key, presetKey);
+async function newProjectFromPreset(key, presetKey = "classic", emblems = false) {
+  const p = await projectFromPreset(key, presetKey, emblems);
   await DB.putProject(p);
   projects.push({ id: p.id, name: p.name, updated: p.updated });
   await loadProject(p.id);
@@ -2263,6 +2329,16 @@ function buildPresets() {
     mk.onclick = () => { closeModal("#mText"); newProjectFromPreset(k); };
 
     card.append(fill, mk);
+
+    // Preset con simboli: la stessa lista, ma con le tessere immagine.
+    if (p.emblems) {
+      const sym = document.createElement("button");
+      sym.className = "preset-new";
+      sym.textContent = "+ come nuova tier list, coi simboli";
+      sym.title = `Crea una tier list "${p.name} (simboli)" con le tessere illustrate`;
+      sym.onclick = () => { closeModal("#mText"); newProjectFromPreset(k, "classic", true); };
+      card.appendChild(sym);
+    }
     dp.appendChild(card);
   });
 
@@ -2341,15 +2417,28 @@ document.addEventListener("keydown", e => {
 // Seed una tantum di un preset come tier list: serve a farla comparire anche
 // negli archivi già esistenti, dove il seeding del primo avvio non scatta più.
 // Il flag in `meta` lo rende irripetibile: chi la elimina non se la ritrova.
-async function seedPreset(key, flag) {
+async function seedPreset(key, flag, emblems = false) {
   try {
     if (await DB.getMeta(flag)) return null;
-    const p = projectFromPreset(key);
+    const p = await projectFromPreset(key, "classic", emblems);
     await DB.putProject(p);
     await DB.putMeta(flag, true);
     projects.push({ id: p.id, name: p.name, updated: p.updated });
     return p;
   } catch { return null; }   // archivio non accessibile: si prosegue senza
+}
+
+// I seed una tantum, in ordine: il boot apre l'ultimo che ha effettivamente seminato.
+const SEEDS = [
+  ["barAscoli", "seed_barAscoli"],
+  ["medicina",  "seed_medicina"],
+  ["partiti",   "seed_partiti"],
+  ["partiti",   "seed_partitiSimboli", true],
+];
+async function seedAll() {
+  let last = null;
+  for (const [key, flag, emblems] of SEEDS) last = (await seedPreset(key, flag, emblems)) || last;
+  return last;
 }
 
 (async function boot() {
@@ -2377,17 +2466,13 @@ async function seedPreset(key, flag) {
     });
     await DB.putProject(p);
     projects = [{ id: p.id, name: p.name, updated: p.updated }];
-    await seedPreset("barAscoli", "seed_barAscoli");
-    await seedPreset("medicina", "seed_medicina");
-    await seedPreset("partiti", "seed_partiti");
+    await seedAll();
     state = p;
     $("#title").value = state.name;
     renderAll();
     toast(`${p.pool.length} unità di misura pronte da ordinare`, "ok");
   } else {
-    const seededAscoli = await seedPreset("barAscoli", "seed_barAscoli");
-    const seededMed = (await seedPreset("medicina", "seed_medicina")) || seededAscoli;
-    const seeded = (await seedPreset("partiti", "seed_partiti")) || seededMed;
+    const seeded = await seedAll();
     if (seeded) {
       await loadProject(seeded.id);
       toast(`Nuova tier list: "${seeded.name}", ${seeded.pool.length} da ordinare`, "ok");
