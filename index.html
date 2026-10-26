@@ -1147,11 +1147,38 @@ const DATA_PRESETS = {
       "Italia del Domani":            ["#2b74b8", "#ffffff", "IdD"],
     },
   },
+  serieTV: {
+    name: "Migliori serie TV",
+    desc: "Le 100 del XXI secolo secondo il New York Times",
+    // Classifica NYT (settembre 2026), voto di oltre 500 addetti ai lavori:
+    // solo serie partite dal 2000 in poi. Le voci sono in ordine di classifica.
+    items: [
+            "Breaking Bad","The Wire","Mad Men","Succession","Fleabag","Game of Thrones","Veep",
+            "30 Rock","Curb Your Enthusiasm","Atlanta","The Office (US)","Arrested Development",
+            "Girls","Friday Night Lights","Six Feet Under","The Office (UK)","The Americans",
+            "I May Destroy You","Chernobyl","The Crown","The White Lotus","Lost","The Comeback",
+            "Deadwood","The Leftovers","Black Mirror","Better Call Saul","Band of Brothers",
+            "Key & Peele","Severance","Survivor","Andor","Enlightened","Schitt's Creek",
+            "True Detective (stagione 1)","The Pitt","Battlestar Galactica","Homeland","Watchmen",
+            "Adolescence","Louie","Hacks","Peaky Blinders","BoJack Horseman","Happy Valley",
+            "Broad City","Twin Peaks: The Return","House of Cards","Normal People",
+            "Parks and Recreation","The Good Place","Downton Abbey","Stranger Things","The Bureau",
+            "Insecure","Nathan for You","I Think You Should Leave","Chappelle's Show","PEN15",
+            "Peep Show","RuPaul's Drag Race","Slow Horses","The Thick of It",
+            "Anthony Bourdain: Parts Unknown","Mare of Easttown","The Rehearsal",
+            "The Handmaid's Tale","Ozark","Anthony Bourdain: No Reservations","The Shield","Beef",
+            "Squid Game","Barry","The Bear","Ted Lasso","Somebody Somewhere","Modern Family",
+            "It's Always Sunny in Philadelphia","The Good Wife","How To with John Wilson",
+            "Catastrophe","Eastbound & Down","Baby Reindeer","Dexter","Reservation Dogs","Shōgun",
+            "The Great British Bake Off","Planet Earth","Justified","Better Things",
+            "La regina degli scacchi","The Night Of","Station Eleven","The Diplomat","Dr. House",
+            "Halt and Catch Fire","Community","The OA","Una mamma per amica","Scandal"],
+  },
 };
 
 // Set che non contengono unità di misura in senso stretto: esclusi da allUnits(),
 // restano comunque disponibili come preset singoli.
-const NOT_UNITS = new Set(["sport", "economia", "curiose", "barAscoli", "medicina", "partiti"]);
+const NOT_UNITS = new Set(["sport", "economia", "curiose", "barAscoli", "medicina", "partiti", "serieTV"]);
 
 // Tutte le unità di misura, deduplicate. Usata sia dal pulsante "Carica tutte"
 // sia dal seeding al primo avvio.
@@ -2434,6 +2461,7 @@ const SEEDS = [
   ["medicina",  "seed_medicina"],
   ["partiti",   "seed_partiti"],
   ["partiti",   "seed_partitiSimboli", true],
+  ["serieTV",   "seed_serieTV"],
 ];
 async function seedAll() {
   let last = null;
