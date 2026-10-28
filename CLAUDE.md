@@ -107,14 +107,15 @@ e si spinge sullo stack al `blur`, così l'intera digitazione è un solo undo.
 ## Preset
 
 `ROW_PRESETS` — 6 strutture di righe (S–F, giudizio, voti…).
-`DATA_PRESETS` — 30 set di tessere pronti (803 voci, 729 uniche): SI base/derivate/composte,
+`DATA_PRESETS` — 31 set di tessere pronti (842 voci, 768 uniche): SI base/derivate/composte,
 prefissi decimali e binari, lunghezza, massa, tempo, superficie, volume, velocità, energia,
 pressione, temperatura, angoli, elettromagnetismo, luce, chimica, nautica, cucina, storiche,
 curiose, informatica, sport, economia, bar di Ascoli, specializzazioni mediche (le 51 scuole
 di specializzazione italiane, area medica/chirurgica/servizi clinici), partiti politici
 italiani (i 13 dei sondaggi nazionali più Ora!, DSP e Italia del Domani, con i simboli
 opzionali), migliori serie TV (le 100 del XXI secolo della classifica New York Times
-di settembre 2026, in ordine di classifica).
+di settembre 2026, in ordine di classifica), cocchie (frutta secca, frutti con la buccia
+e altre cose con la crosta: pane, intonaco, compensato…).
 Aggiungerne uno = una voce nell'oggetto, la UI si costruisce da sola in `buildPresets()`.
 
 Ogni card di `#dataPresets` ha due azioni: il corpo accoda le voci alla textarea
@@ -144,7 +145,7 @@ che nessun progetto cita, quindi `projectFromPreset()` è `async` e i suoi due c
 (`newProjectFromPreset`, `seedPreset`) salvano il progetto subito dopo.
 
 `allUnits()` unisce tutti i set tranne quelli in `NOT_UNITS` (`sport`, `economia`,
-`curiose`, `barAscoli`, `medicina`, `partiti`, `serieTV`) e deduplica: 433 voci. Aggiungendo un preset che non
+`curiose`, `barAscoli`, `medicina`, `partiti`, `serieTV`, `cocchie`) e deduplica: 433 voci. Aggiungendo un preset che non
 contiene unità di misura vere, va inserito in `NOT_UNITS`; tutti i conteggi si ricalcolano
 da soli.
 
@@ -162,7 +163,7 @@ se non esiste alcun progetto: un reload non risemina e "Nuova tier list" resta v
 
 **`seedPreset(key, flag, emblems)`** — crea un preset come tier list anche negli archivi
 già esistenti, dove il primo avvio non scatta più (è così che "Bar di Ascoli",
-"Specializzazioni mediche", le due liste dei partiti e "Migliori serie TV" sono comparse a chi usava già
+"Specializzazioni mediche", le due liste dei partiti, "Migliori serie TV" e "Cocchie" sono comparse a chi usava già
 l'app). L'elenco sta nella tabella `SEEDS`, che `seedAll()` percorre in ordine:
 aggiungerne uno = una riga. Il flag in `meta` la
 rende irripetibile: chi elimina la lista non se la ritrova al reload. Con l'archivio
