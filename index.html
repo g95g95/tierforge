@@ -1174,11 +1174,26 @@ const DATA_PRESETS = {
             "La regina degli scacchi","The Night Of","Station Eleven","The Diplomat","Dr. House",
             "Halt and Catch Fire","Community","The OA","Una mamma per amica","Scandal"],
   },
+  cocchie: {
+    name: "Cocchie",
+    desc: "Frutta secca, frutti con buccia e altre cose con la crosta",
+    items: [
+            // frutta secca
+            "Noce","Nocciola","Mandorla","Pistacchio","Anacardo","Noce pecan",
+            "Noce macadamia","Noce del Brasile","Pinolo","Castagna","Arachide",
+            "Noce di cocco",
+            // frutta con la buccia
+            "Banana","Arancia","Mandarino","Clementina","Limone","Pompelmo","Melograno",
+            "Ananas","Kiwi","Mango","Papaya","Litchi","Avocado","Anguria","Melone",
+            "Mela","Pera","Fico d'India","Frutto della passione","Pitaya",
+            // il resto
+            "Pane","Oliva","Intonaco","Compensato","Ossa","Denti","Telaio macchina"],
+  },
 };
 
 // Set che non contengono unità di misura in senso stretto: esclusi da allUnits(),
 // restano comunque disponibili come preset singoli.
-const NOT_UNITS = new Set(["sport", "economia", "curiose", "barAscoli", "medicina", "partiti", "serieTV"]);
+const NOT_UNITS = new Set(["sport", "economia", "curiose", "barAscoli", "medicina", "partiti", "serieTV", "cocchie"]);
 
 // Tutte le unità di misura, deduplicate. Usata sia dal pulsante "Carica tutte"
 // sia dal seeding al primo avvio.
@@ -2462,6 +2477,7 @@ const SEEDS = [
   ["partiti",   "seed_partiti"],
   ["partiti",   "seed_partitiSimboli", true],
   ["serieTV",   "seed_serieTV"],
+  ["cocchie",   "seed_cocchie"],
 ];
 async function seedAll() {
   let last = null;
